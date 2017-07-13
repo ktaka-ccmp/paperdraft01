@@ -1,26 +1,80 @@
 \section{Introduction}
 
-Recently WEB services deployed as container clusters are getting popular.
-Those clusters are expected to be easily migrated due to its lightweightness and portability.
-Therefore it is also considered to be feasible for BCP or DR purpose.
+Recently linux container clusters draw much attention　because they are lightweight, portable and repeatable.
+The meaning of those characteristics may change depending on the context where they are utilized.
+However the container clusters are generally more lightweight than Virtual Machine clusters, 
+because the containers have seperate execution environment but share the kernel. 
+They are generally portable, because the process execution environment, especially the file system, are packed
+into some forms of archives, like the tar.
+So whenever one attempts to run a container, those archived file systems
+are unpacked and result in exact the same file systems even on totally different datacenters.
 
-Kubernetes container cluster management system is one of the prominet candidates
-for container cluster migration.
+For Web serviceis, linux containers are attractive becase of the same reasons. 
+Furthermore, it is expected that Web systems consisting of container cluster are capable of being easily migrated 
+when BCP() and DR() are the requirements. 
+
+The Kubernetes container cluster management system is one of the prominet candidates
+which enble easy container cluster migration.
 However it turned out that the kubernetes has issues when it comes to migration, 
 because it does not include a load balancer and relies on external load balancers  
-proveided by cloud providers.
+prepared by cloud providers.
+The kubernetes will send a request to an api endpoint of a cloud provider, 
+and the cloud provider will automatically setup a load balancer which distribute the traffic from outside to every nodes
+ where containers are run on. Then the traffic is forwarded again using iptables DNAT rule with the round-robin manner. 
 
-The kubernetes will send a request to api endpoint of a cloud provider, 
-and the cloud provider will setup a load balancer accordingly for the kubernetes cluster.
+This does not necessarily work for all cloud provider nor for on-premise datacenters.
+There are cloud providers or on-premise datacenters
+where there is no loadbalancer which is supported by the Kubernetes.
 
-There is always a chance that a user want to run a kubernetes cluster on a cloud provider where the locad balancer api
-has not yet been supported by kubernetes.
-And it is more likey that a user want to use a load balancer, which kubernetes does not support, on on-premise datacenter.
+When the Kubernetes container cluster management system is deployed on such environment,
+there will be a need for a static and adhoc routing setups for traffic from outside.
+
+In this paper, we propose a software load balancer deployed as a container in Kubernets system. 
+We will implement ipvs layer 4 load balancer as a container and 
+investigate the feasibility of such load balancer by comparing the perfomance with iptables DNAT and nginx proxy.
+
+We will also investigate appropriate network settings which enable such loadbalancers to work properly.
+
+The rest of the paper is organized as follows.
+The section \ref{Related Work} highlights related work specifically those deal with container cluster migration, 
+software loadbalancer containerization or a loadbalancer related tools in the context of container. 
+
+\section{Related Work}\label{Related Work}
+This highlights related work specifically those deal with container cluster migration, 
+software loadbalancer containerization or a loadbalancer related tools in the context of container. 
+
+\cite{Verma2015}
+\cite{K8sExtLoadBalancer2017}
+\cite{K8sFederation2017}
+\cite{Zhang2000}
+\cite{Pleshakov2016}
+\cite{NginxInc2016}
+\cite{Prashanth2016}
+\cite{ACassen2016}
+\cite{Sibiryov2015}
+\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433}
+\cite{DockerCoreEngineering2016}
+\cite{DockerInc2017}
+\cite{DockerInc2017}
+\cite{MartinA.Brown2017}
+\cite{CoreOSEtcd}
+\cite{HashiCorp}
+\cite{ktaka_ccmp_2017_826894}
+\cite{BertHubert2002}
+\cite{Glozer2016}
+\cite{CoreOSFlannel}
+\cite{CoreOSFlannelBackend}
+\cite{TomHerbert}
 
 
-This paper investigate a software load balancer deployed as a container, by kubernets. 
-We will implement ipvs layer 4 load balancer as a container.
-We will also investigate the feasibility of such load balancer by comparing the perfomance against iptables and nginx as load balancers.
+\section{Loadbalancers in Kubernetes}
+\subsection{Conventional Architecuture}
+\subsection{Proposed Architecture}
+
+
+\section{Related Work}
+
+
 
 
 

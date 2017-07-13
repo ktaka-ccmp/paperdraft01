@@ -93,20 +93,19 @@
 
 \begin{abstract}
 Recently Linux Containers are getting popular because of its lightweight nature.
-WEB services applications are often deployed as cluster of containers.
+WEB service applications are often deployed as cluster of a containers.
 
 There are needs for those WEB services to be able to migrate to different cloud providers
 or on-premise data centers, for BCP(Business continuity planning) or DR(Disaster Recovery) purposes.
 
 The Kubernetes container management system is a prominet candidate to enable such container cluster migration.
-However since it uses external loadbalancer throught REST API,
-it is not garrantied to always work.
-There are many load balancers which  kubernetes doesn't support, 
+However since the Kubernetes relies on external loadbalancer to route the traffic from the internet into some of the nodes where containers run on, 
+it is not guaranteed to always work.
+There are many load balancers which kubernetes does not support, 
 especially if it is a hardware load balancer used in on-premise datacenters.
 
-This paper investigate a software load balancer deployed as a container, by kubernets. 
-We will implement ipvs layer 4 load balancer as a container.
-We will also investigate the feasibility of such load balancer by comparing the perfomance against iptables and nginx as load balancers.
+To overcome this paper investigate feasibility of a software load balancer deployed as a container run by the Kubernets. 
+We will implement ipvs layer 4 load balancer as a container and discuss the feasibility of it by comparing the performances of such loadbalancers.
 
 \end{abstract}
 
