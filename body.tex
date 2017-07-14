@@ -5,19 +5,19 @@ The meaning of those characteristics may change depending on the context where t
 However the container clusters are generally more lightweight than Virtual Machine clusters, 
 because the containers have seperate execution environment but share the kernel. 
 They are generally portable, because the process execution environment, especially the file system, are packed
-into some forms of archives, like the tar.
+into the tar archives.
 So whenever one attempts to run a container, those archived file systems
-are unpacked and result in exact the same file systems even on totally different datacenters.
+are unpacked and result in the exact same file systems even on totally different datacenters.
 
 For Web serviceis, linux containers are attractive becase of the same reasons. 
 Furthermore, it is expected that Web systems consisting of container cluster are capable of being easily migrated 
 when BCP() and DR() are the requirements. 
 
-The Kubernetes container cluster management system is one of the prominet candidates
+The Kubernetes\cite{K8s2017} container cluster management system is one of the prominet candidates
 which enble easy container cluster migration.
 However it turned out that the kubernetes has issues when it comes to migration, 
 because it does not include a load balancer and relies on external load balancers  
-prepared by cloud providers.
+which is prepared by cloud providers.
 The kubernetes will send a request to an api endpoint of a cloud provider, 
 and the cloud provider will automatically setup a load balancer which distribute the traffic from outside to every nodes
  where containers are run on. Then the traffic is forwarded again using iptables DNAT rule with the round-robin manner. 
@@ -40,17 +40,39 @@ The section \ref{Related Work} highlights related work specifically those deal w
 software loadbalancer containerization or a loadbalancer related tools in the context of container. 
 
 \section{Related Work}\label{Related Work}
-This highlights related work specifically those deal with container cluster migration, 
+This section highlights related work specifically those deal with container cluster migration, 
 software loadbalancer containerization or a loadbalancer related tools in the context of container. 
+
+Some developers of the kubernetes are trying to add federetion\cite{K8sFederation2017} capability 
+where multiple Kubernetes clusters are deployed on multiple cloud providers or on-premise datacenters 
+and are managed via federation api server. However, how each of Kubernetes clusters is run on different type of cloud providers
+or in on-premise datacenters, especially when the load balancers of such environments are not supported by the Kubernetes, 
+is out of the scope of the project. 
+   
+As far as the containerization of a load balancers are concerned, there are following related works:
+Nginx-ingress\cite{Pleshakov2016,NginxInc2016} utilizes the ingress\cite{K8sIngress2017} capability of the Kuberentes, 
+and implements contanerized nginx proxy as a load balancer. The nginx itself is famous as a high performance web server program,
+which also has the functionality of layer 7 load balancer. The nginx is capable of handling TLS encryption and also capable of  
+URI based switching. However the flip side of these is that it is much slower than layer 4 switching.
+The upper bound of the performance as a load balancer will not be far better than that of single web server. 
+Therefore it is meaningless to use the nginx as a load balancer when one is trying to serve lightweight web pages using
+the nginx as a web server.
+ 
+The kube-keepalived-vip\cite{Prashanth2016} project is trying to use the linux kernel's loadbalancer capability, 
+called ipvs\cite{Zhang2000} by containerizing the keepalived\cite{ACassen2016}. 
+The keepalived container is using the daemonsets\cite{K8sDaemonsets2017} capability of the Kubernetes, 
+where the container is run on every node.
+This work is very similar in the sense that it uses keepalived and ipvs in container. However it does not provide 
+per container cluster load balancer which is portable among different cloud providers.   
+
+
+
 
 \cite{Verma2015}
 \cite{K8sExtLoadBalancer2017}
-\cite{K8sFederation2017}
-\cite{Zhang2000}
-\cite{Pleshakov2016}
-\cite{NginxInc2016}
-\cite{Prashanth2016}
-\cite{ACassen2016}
+
+
+
 \cite{Sibiryov2015}
 \cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433}
 \cite{DockerCoreEngineering2016}
