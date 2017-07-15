@@ -54,17 +54,33 @@ Nginx-ingress\cite{Pleshakov2016,NginxInc2016} utilizes the ingress\cite{K8sIngr
 and implements contanerized nginx proxy as a load balancer. The nginx itself is famous as a high performance web server program,
 which also has the functionality of layer 7 load balancer. The nginx is capable of handling TLS encryption and also capable of  
 URI based switching. However the flip side of these is that it is much slower than layer 4 switching.
-The upper bound of the performance as a load balancer will not be far better than that of single web server. 
-Therefore it is meaningless to use the nginx as a load balancer when one is trying to serve lightweight web pages using
-the nginx as a web server.
+The upper bound of the performance of the nginx as a load balancer will not exceed that as a single web server serving lightweight web pages. 
+Therefore it is meaningless to use the nginx as a load balancer in such cases.
  
 The kube-keepalived-vip\cite{Prashanth2016} project is trying to use the linux kernel's loadbalancer capability, 
-called ipvs\cite{Zhang2000} by containerizing the keepalived\cite{ACassen2016}. 
+called ipvs\cite{Zhang2000} by containerizing the keepalived\cite{ACassen2016} and ipvs. 
 The keepalived container is using the daemonsets\cite{K8sDaemonsets2017} capability of the Kubernetes, 
 where the container is run on every node.
-This work is very similar in the sense that it uses keepalived and ipvs in container. However it does not provide 
+This work is very similar to our proposal in the sense that it uses keepalived and ipvs in container. However it does not provide 
 per container cluster load balancer which is portable among different cloud providers.   
+Our proposal is to provide a load balancer that is configurable and deployable at user's will,
+ as a part of container cluster itself not as a port of the infrastructure.  
 
+The swarm mode of the dokcer\cite{DockerCoreEngineering2016,DockerInc2017} also uses ipvs for internal load balancing,
+however it is also considered as built-in load balancer functionality of the docker, 
+and is not different from our proposal.
+
+There are several other projects where an effort to utilize ipvs in the context of container environment.
+The gorb\cite{Sibiryov2015} and the clusterf\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433} are daemons 
+which setups ipvs in the kernel inside docker container. They utilize information about runnning container inside key-value storages
+like the etcd\cite{CoreOSEtcd} and the consul\cite{HashiCorpConsul}. 
+These has the similar functionality which is realized by a combination of keeapalived and the kubernetes ingress controller in our proposal.
+These may be usable in our environment in future, but that is beyond the scope of this paper.
+
+The contribution of the paper are followings: 
+1) We propose a portable load balancer as a container for the kuberbetes cluster 
+that is deployable on almost any cloud provider or on on-premise datacenters.
+2) We discuss feasibility of the above by quantitativly measuring the performance.
 
 
 
@@ -73,14 +89,10 @@ per container cluster load balancer which is portable among different cloud prov
 
 
 
-\cite{Sibiryov2015}
-\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433}
-\cite{DockerCoreEngineering2016}
-\cite{DockerInc2017}
 \cite{DockerInc2017}
 \cite{MartinA.Brown2017}
-\cite{CoreOSEtcd}
-\cite{HashiCorp}
+
+
 \cite{ktaka_ccmp_2017_826894}
 \cite{BertHubert2002}
 \cite{Glozer2016}
