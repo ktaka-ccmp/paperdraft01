@@ -1,6 +1,6 @@
 \section{Introduction}
 
-Recently linux container clusters draw much attention　because they are lightweight, portable and repeatable.
+Recently linux container clusters draw much attention because they are lightweight, portable and repeatable.
 The meaning of those characteristics may change depending on the context where they are utilized.
 However the container clusters are generally more lightweight than Virtual Machine clusters, 
 because the containers have seperate execution environment but share the kernel. 
@@ -83,15 +83,10 @@ that is deployable on almost any cloud provider or on on-premise datacenters.
 2) We discuss feasibility of the above by quantitativly measuring the performance.
 
 
-
 \cite{Verma2015}
 \cite{K8sExtLoadBalancer2017}
 
-
-
-\cite{DockerInc2017}
 \cite{MartinA.Brown2017}
-
 
 \cite{ktaka_ccmp_2017_826894}
 \cite{BertHubert2002}
@@ -101,14 +96,75 @@ that is deployable on almost any cloud provider or on on-premise datacenters.
 \cite{TomHerbert}
 
 
-\section{Loadbalancers in Kubernetes}
+\section{Problem Description}
+
 \subsection{Conventional Architecuture}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/K8sConventional}
+\caption{A Conventional Kubernetes cluster.}
+\label{fig:K8sConventional}
+\end{figure}
+
+Figure~\ref{fig:K8sConventional} shows schematic diagram of a conventional Kubernetes cluster.
+
+
 \subsection{Proposed Architecture}
 
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/K8sConventional}
+\caption{A Kubernetes cluster with proposed load balancer.}
+\label{fig:K8sProposed}
+\end{figure}
 
-\section{Related Work}
+Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernetes cluster.
+
+\section{Implementation}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/ipvs-ingress-schem}
+\caption{Implementation}
+\label{fig:ipvs-ingress-schem}
+\end{figure}
+
+\section{Performance Measurement}
+\subsection{Benchmarking method}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/benchmark-schem}
+\caption{Benchmark setup}
+\label{fig:benchmark-schem}
+\end{figure}
+
+\subsection{Overlay network}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/flannel-packet-diagram}
+\caption{frame diagram}
+\label{fig:flannel-packet-diagram}
+\end{figure}
 
 
+\subsection{Distributed packet handling}
+\section{Result and Discussion}
+
+\begin{figure*}
+\includegraphics[width=\textwidth]{Figs/iptables_3figs}
+\caption{iptables results}
+\label{fig:iptabls3figs}
+\end{figure*}
+
+\begin{figure*}
+\includegraphics[width=\textwidth]{Figs/ipvs_3figs}
+\caption{ipvs results}
+\label{fig:ipvs3figs}
+\end{figure*}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/ipvs-iptables-nginx_2figs}
+\caption{ipvs and iptables comparison}
+\label{fig:ipvs-iptables-nginx_2figs}
+\end{figure}
 
 
 
