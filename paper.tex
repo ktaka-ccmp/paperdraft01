@@ -1,7 +1,8 @@
 \documentclass[sigconf]{acmart}
 
 \usepackage{booktabs} % For formal tables
-
+\usepackage{listings}
+\usepackage{fancyvrb}
 
 % Copyright
 %\setcopyright{none}
@@ -15,31 +16,24 @@
 
 
 % DOI
-\acmDOI{10.475/123_4}
+\acmDOI{}
 
 % ISBN
-\acmISBN{123-4567-24-567/08/06}
+\acmISBN{}
 
 %Conference
-\acmConference[WOODSTOCK'97]{ACM Woodstock conference}{July 1997}{El
-  Paso, Texas USA} 
-\acmYear{1997}
-\copyrightyear{2016}
+\acmConference[hpcasia2018]{}{}{Tokyo, Japan} 
+\acmYear{2018}
+\copyrightyear{2018}
 
-\acmPrice{15.00}
+\acmPrice{}
 
 
 \begin{document}
 \title{A Portable Load Balancer for Kubernetes Cluster}
-\titlenote{Produces the permission block, and
-  copyright information}
-\subtitle{Extended Abstract}
-\subtitlenote{The full version of the author's guide is available as
-  \texttt{acmart.pdf} document}
-
 
 \author{Kimitoshi Takahashi}
-\authornote{Dr.~Trovato insisted his name be first.}
+\authornote{Also affiliated with Cluster Computing Inc., ktaka@ccmp.jp}
 \orcid{/0000-0001-5774-6725}
 \affiliation{%
   \institution{The Graduate University for Advanced Studies}
@@ -52,7 +46,6 @@
 \email{ktaka@nii.ac.jp}
 
 \author{Kento Aida}
-\authornote{The secretary disavows any knowledge of this author's actions.}
 \affiliation{%
   \institution{National Institute of Informatics}
   \streetaddress{2-1-2 Hitotsubashi}
@@ -64,8 +57,6 @@
 \email{aida@nii.ac.jp}
 
 \author{Tomoya Tanjo}
-\authornote{This author is the
-  one who did all the really hard work.}
 \affiliation{%
   \institution{National Institute of Informatics}
   \streetaddress{2-1-2 Hitotsubashi}
@@ -88,7 +79,7 @@
 \email{sun@nii.ac.jp}
 
 % The default list of authors is too long for headers}
-\renewcommand{\shortauthors}{B. Trovato et al.}
+\renewcommand{\shortauthors}{K. Takahashi et al.}
 
 
 \begin{abstract}
@@ -99,13 +90,13 @@ There are needs for those WEB services to be able to migrate to different cloud 
 or on-premise data centers, for BCP(Business continuity planning) or DR(Disaster Recovery) purposes.
 
 The Kubernetes container management system is a prominet candidate to enable such container cluster migration.
-However since the Kubernetes relies on external loadbalancer to route the traffic from the internet into some of the nodes where containers run on, 
+However since the Kubernetes relies on external loadbalancer to route the traffic from the internet into the nodes where containers run on, 
 it is not guaranteed to always work.
 There are many load balancers which kubernetes does not support, 
 especially if it is a hardware load balancer used in on-premise datacenters.
 
-To overcome this paper investigate feasibility of a software load balancer deployed as a container run by the Kubernets. 
-We will implement ipvs layer 4 load balancer as a container and discuss the feasibility of it by comparing the performances of such loadbalancers.
+To overcome this, we investigate feasibility of a software load balancer run in a container deployed by the Kubernets. 
+We will implement ipvs layer 4 load balancer as a container and compare the performances of such loadbalancers with convetional ones.
 
 \end{abstract}
 
@@ -115,37 +106,12 @@ We will implement ipvs layer 4 load balancer as a container and discuss the feas
 % Please copy and paste the code instead of the example below. 
 %
 \begin{CCSXML}
-<ccs2012>
- <concept>
-  <concept_id>10010520.10010553.10010562</concept_id>
-  <concept_desc>Computer systems organization~Embedded systems</concept_desc>
-  <concept_significance>500</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010575.10010755</concept_id>
-  <concept_desc>Computer systems organization~Redundancy</concept_desc>
-  <concept_significance>300</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010553.10010554</concept_id>
-  <concept_desc>Computer systems organization~Robotics</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
- <concept>
-  <concept_id>10003033.10003083.10003095</concept_id>
-  <concept_desc>Networks~Network reliability</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
-</ccs2012>  
+%%
 \end{CCSXML}
 
-\ccsdesc[500]{Computer systems organization~Embedded systems}
-\ccsdesc[300]{Computer systems organization~Redundancy}
-\ccsdesc{Computer systems organization~Robotics}
-\ccsdesc[100]{Networks~Network reliability}
+\ccsdesc[]{}
 
-
-\keywords{ACM proceedings, \LaTeX, text tagging}
+\keywords{Container, Cloud Computing, Kubernetes, Load Balancer}
 
 
 \maketitle
