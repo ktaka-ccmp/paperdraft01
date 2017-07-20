@@ -181,7 +181,7 @@ on the container's file system.
 In order to let the keepalived manipulate kernel's ipvs rules, 
 we needed to add CAP\_NET\_ADMIN capability to the container.
 
-There is a explanation in a reference\cite{Pai2016} about some of the capbilities that is dropped inside docker containers.
+There is a explanation in \cite{mp2016enhancing} about some of the capbilities that is dropped inside docker containers.
 
 \begin{figure}
 \begin{minipage}{0.8\columnwidth}
@@ -275,26 +275,81 @@ Each pod will return HTTP responses to the load balancer and the load balancer w
 The number of responses received by the wrk on the client is counted, 
 then the (normally processed) request/sec is obtained. 
 
+Figure~\ref{fig:benchmark example} shows an example of the commandline and the output.
+The commandline in Figure~\ref{fig:benchmark example} will generate 40 thread of wrk program 
+and lets those thread send out 800 concurrent http requests during 30 seconds.
+
+The example output shows information including per thread statistics, error counts, Request/sec and Transfer/sec[M byte].
+We compared the Request/sec for several conditions.
+
+Figure~\ref{fig:Hardware and software configuration} shows hardware and software configuration used in our experiments.
+We used nginx as the target http server which returns own IP address as http content. 
+The size of the characters is an IP address is only upto 15 bytes, 
+which is relatively severe condition for a load balancer.
+If we chose the size of the http respose so that most of the IP packet result in MTU,
+the benchmark results would be limited by the bandwidth of the ethernet.
+Since we used small http responses, we could draw more performance than otherwise.
+
 \begin{figure}
 \begin{minipage}{\columnwidth}
 \small
-\begin{verbatim}
+\begin{Verbatim}[commandchars=\\\{\}]
 
-# kubectl exec -it ipvs-controller-4117154712-kv633 -- ipvsadm -L
-IP Virtual Server version 1.2.1 (size=4096)
-Prot LocalAddress:Port Scheduler Flags
-  -> RemoteAddress:Port Forward Weight ActiveConn InActConn
-FWM  1 lc
-  -> 172.16.21.2:80      Masq    1      0          0         
-  -> 172.16.80.2:80      Masq    1      0          0
+\underline{\textbf{Command line:}}
+ wrk -c800 -t40 -d30s http://172.16.72.2:8888/
+-c: concurrency, -t: # of thread, -d: duration
 
-\end{verbatim}
+\underline{\textbf{Result sample:}}
+ Running 30s test @ http://10.254.0.10:81/
+  40 threads and 800 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    15.82ms   41.45ms   1.90s    91.90%
+    Req/Sec     4.14k   342.26     6.45k    69.24%
+  4958000 requests in 30.10s, 1.14GB read
+  Socket errors: connect 0, read 0, write 0, timeout 1
+Requests/sec: 164717.63
+Transfer/sec:     38.86MB
+
+\end{Verbatim}
 \end{minipage}
-\caption{An example of ipvs balancing rules}
-\label{fig:ipvs rule}
+\caption{An example output of benchmarking by wrk}
+\label{fig:benchmark example}
 \end{figure}
 
+\begin{figure}
+\begin{minipage}{0.9\columnwidth}
+\small
+\begin{Verbatim}[commandchars=\\\{\}]
 
+\underline{\textbf{Physical Machine Specification:}}
+  CPU: Intel(R) Xeon(R) CPU E5-2450 0 @ 2.10GHz
+  Memory: 32GB
+  NIC: Broadcom BCM5720 Gigabit Ethernet PCIe
+
+\underline{\textbf{Number of Physical Machines:}}
+  Master: 1
+  Node: 7
+  Client: 1
+
+\underline{\textbf{Node Software version:}}
+  OS: Debian 8.7 (Jessie)
+  Kernel: \footnotesize{3.16.0-4-amd64 #1 SMP Debian 3.16.39-1 (2016-12-30)}
+  Kubernetes v1.5.2
+  flannel v0.7.0
+  etcd version: 3.0.15
+
+\underline{\textbf{Load balancer Software version:}}
+  Keepalived: v1.3.2 (12/03,2016)
+  nginx: nginx/1.11.1
+
+\underline{\textbf{Worker Pod Software vesion:}}
+  nginx : nginx/1.13.0 
+
+\end{Verbatim}
+\end{minipage}
+\caption{Hardware and software configuration}
+\label{fig:Hardware and software configuration}
+\end{figure}
 
 
 \subsection{Overlay network}
@@ -305,8 +360,10 @@ FWM  1 lc
 \label{fig:flannel-packet-diagram}
 \end{figure}
 
-
 \subsection{Distributed packet handling}
+
+
+
 
 \section{Result and Discussion}\label{Result and Discussion}
 
