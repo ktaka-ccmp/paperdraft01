@@ -354,11 +354,62 @@ Transfer/sec:     38.86MB
 
 \subsection{Overlay network}
 
+When building a Kubernetes cluster, one has a choice in usable overlay networks.
+We used the flannel to build the Kubernetes cluster used in our experiment. 
+The flannel has 3 types of backend, called host-gw, vxlan and udp\cite{CoreOSFlannelBackend}.
+
+In the host-gw mode, the flanneld on a node server simply set up the routing table 
+based on IP address assignment information of the overlay network which is stored in etcd. 
+When a pod on the A-node sends out a IP packet to another pods on the B-node server, 
+the A-node servers will consult the routing table and learn that that IP packet should be sent out to the B-node.
+Then the A-node will form ethernet frames having destination MAC address of the B-node without changing the IP header.
+
+In the case of the vxlan mode, the flanneld will create linux kernel's vxlan device, flannel.1. 
+The flanneld also setup the routing table appropriately based on the information stored in the etcd.
+When pods on different nodes need to communicate, the packet is routed to flannel.1.
+The vxlan functionality of the linux kernel will find out MAC address of flannel.1 device on the opponent node server 
+then form a ethernet frame toward that MAC address.
+The vxlan functionality of the linux kernel will then encapsulate the etherenet frame in a UDP/IP packet with vxlan header.
+The IP packet is sent out eventually.
+
+In the case of udp mode, the flanneld will create a tun device, flannel0 and setup the routing table.
+The flannel0 is connected to flanneld, daemon itself.
+An IP packet routed to flannel0 is encapsulated bye the flanneld, and eventually sent out 
+to the appropriate node server. 
+The encapsulation is done for IP packets.
+
+Figure~\ref{fig:flannel-packet-diagram} shows schematic diagrams of frame format for the three backend of 
+the flannel overlay network.
+Also shown are the MTU sizes of each operation mode, assuming the MTU without encapsulation is 1500byte.
+
+Since packets are not encapsulated in the host-gw mode, the MTU remains 1500bytes.
+Additional 50bytes of header is used in vxlan mode, resulting in MTU of 1450bytes.
+In the case of udp mode only 28bytes of header is used for encapsulation, which results in MTU of 1472bytes.
+
+Performance of the load balancers are expected to be infulenced by the overhead of encapsulation processing.
+
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/flannel-packet-diagram}
 \caption{frame diagram}
 \label{fig:flannel-packet-diagram}
 \end{figure}
+
+We assumed the host-gw mode, where there is no overhead due to encapsulation, will result in the best performance.
+That was the case as shown in Section~\ref{Result and Discussion}.
+However, this mode has the following significant drawback.
+
+Since it simply send out a packet without encapsulation, 
+if there is a gateway between node servers, 
+it will drop the packet because it does not know where to send the packet to.
+
+This is known to happen in the case of cloud providers.  
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/flannel-packet-diagram}
+\caption{frame diagram}
+\label{fig:flannel-packet-diagram}
+\end{figure}
+
 
 \subsection{Distributed packet handling}
 
