@@ -1,13 +1,13 @@
 \section{Introduction}
 
 Recently linux container clusters draw much attention because they are lightweight, portable and repeatable.
-The meaning of those characteristics may change depending on the context where they are utilized.
-However the container clusters are generally more lightweight than Virtual Machine clusters, 
-because the containers have seperate execution environment but share the kernel. 
+Container clusters are generally more lightweight than Virtual Machine clusters, 
+because the containers have seperate execution environment sharing the kernel with host OS. 
 They are generally portable, because the process execution environment, especially the file system, are packed
 into the tar archives.
-So whenever one attempts to run a container, those archived file systems
-are unpacked and result in the exact same file systems even on totally different datacenters.
+Whenever one attempts to run a container, the exact same file systems are restored from the archives, 
+even on totally different datacenters. 
+This results in a repeatable execution environment.
 
 For Web serviceis, linux containers are attractive becase of the same reasons. 
 Furthermore, it is expected that Web systems consisting of container cluster are capable of being easily migrated 
@@ -20,24 +20,29 @@ because it does not include a load balancer and relies on external load balancer
 which is prepared by cloud providers.
 The kubernetes will send a request to an api endpoint of a cloud provider, 
 and the cloud provider will automatically setup a load balancer which distribute the traffic from outside to every nodes
- where containers are run on. Then the traffic is forwarded again using iptables DNAT rule with the round-robin manner. 
+ where containers are run on. Then the traffic is forwarded again using iptables DNAT\cite{MartinA.Brown2017,Marmol2015} rule with the round-robin manner. 
 
 This does not necessarily work for all cloud provider nor for on-premise datacenters.
-There are cloud providers or on-premise datacenters
-where there is no loadbalancer which is supported by the Kubernetes.
+There exist environments
+where there is no load balancer which is supported by the Kubernetes.
 
 When the Kubernetes container cluster management system is deployed on such environment,
 there will be a need for a static and adhoc routing setups for traffic from outside.
 
 In this paper, we propose a software load balancer deployed as a container in Kubernets system. 
-We will implement ipvs layer 4 load balancer as a container and 
+We will implement ipvs\cite{Zhang2000} layer 4 load balancer as a container and 
 investigate the feasibility of such load balancer by comparing the perfomance with iptables DNAT and nginx proxy.
 
-We will also investigate appropriate network settings which enable such loadbalancers to work properly.
+We will also investigate appropriate network settings which enable such load balancers to work properly.
 
 The rest of the paper is organized as follows.
 The section \ref{Related Work} highlights related work specifically those deal with container cluster migration, 
 software loadbalancer containerization or a loadbalancer related tools in the context of container. 
+The section \ref{Load balancers in Kubernetes cluster} will explain the problem of the exsisting architecture and propose our solution.
+In the section \ref{Performance Measurement}, experimental conditions and the parametes we used in the experiment are described in detail.
+We will show the result of experiment and disscuss the characteristics in the section \ref{Result and Discussion} 
+followed by the conclusion in the section~\ref{Conclusions}.
+  
 
 \section{Related Work}\label{Related Work}
 This section highlights related work specifically those deal with container cluster migration, 
@@ -83,43 +88,68 @@ that is deployable on almost any cloud provider or on on-premise datacenters.
 2) We discuss feasibility of the above by quantitativly measuring the performance.
 
 
-\cite{Verma2015}
-\cite{K8sExtLoadBalancer2017}
-
-\cite{MartinA.Brown2017}
-
-\cite{ktaka_ccmp_2017_826894}
-\cite{BertHubert2002}
-\cite{Glozer2016}
-\cite{CoreOSFlannel}
-\cite{CoreOSFlannelBackend}
-\cite{TomHerbert}
-
-
-\section{Problem Description}
+\section{Load balancers in Kubernetes cluster}\label{Load balancers in Kubernetes cluster}
 
 \subsection{Conventional Architecuture}
 
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/K8sConventional}
-\caption{A Conventional Kubernetes cluster.}
+\caption{Conventional Architecture of A Kubernetes cluster.}
 \label{fig:K8sConventional}
 \end{figure}
 
-Figure~\ref{fig:K8sConventional} shows schematic diagram of a conventional Kubernetes cluster.
+The kubernetes container management system has an issue when it is used in outside of recommended cloud providers e.g. GCP or AWS.
+Figure~\ref{fig:K8sConventional} shows a exemplified Kubernetes cluster.
+The kubernets cluster typically consists of master servers and node servers.
+On the master servers daemons that control the Kubernetes cluster are typically deployed. 
+These daemons include, apiserver, scheduler, controler-manager and etcd. 
+On the node servers, the kublet daemon will run pods, depending the PodSpec information obtained from the apiserver on the master servers.
+A pod is a group of containers which share the net name space and cgroups, and is the basic execution unit in the Kubernets cluster.
 
+When a service is created, the masters will send out request to cloud providers API endpoints, to set up external load balancers.
+The proxy daemon on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
+which distributes the inbound traffic to the existing pods.
+
+The traffic from the internet will be distributed by the external load balancer to node servers evenly, 
+then it will be distributed again by the DNAT rules on the node serves to designated pods. 
+The returning packets will follow the exact same route as the incoming ones.
+
+The problems of this architecture are the following: 
+1) Having external load balancers whose apis are supported by the Kubernetes daemons is the prerequisite. 
+There are many cloud providers where the api of load balancers is not supported by Kubernetes. 
+There are many load balancers which dose not even have APIs that is usable by Kubernets, for on-premise datacenters.  
+In such cases, one could manually setup the routing table on a gateway to one of the node servers, 
+then the traffic will be distributed by the DNAT rules on the node to designated pods.
+However this is far from convenient.
+2) Distributing the traffic twice, firstly on the external load balancers and secondary on each node, 
+will complicate the route a packet follows. Imagine the situatiuon, where the DNAT table on one of the node servers malfunctions.
+In such case, you will only observe occasional timeouts. It is very difficult to find out which node server malfunctions.   
 
 \subsection{Proposed Architecture}
 
 \begin{figure}
-\includegraphics[width=\columnwidth]{Figs/K8sConventional}
+\includegraphics[width=\columnwidth]{Figs/K8sProposed}
 \caption{A Kubernetes cluster with proposed load balancer.}
 \label{fig:K8sProposed}
 \end{figure}
 
-Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernetes cluster.
+Figure~\ref{fig:K8sProposed} shows the proposed architecture of the Kubernetes cluster, 
+which has following characteristics:
+1) Each load balancer itself is run as a pod by the Kuberenets system. 
+2) There exist multiple load balancers for redundancy. 
+3) Configuration of the load balancers are dynamically changed depending on the information of running pods responsible for services.
 
-\section{Implementation}
+By following these architecture, we can resolve the problems of conventional architecture.
+Since load balancer itself is containerized, it can be run on any environment including on-premise datacenters.
+And because it only distribute traffic only once on the load balancer, it is relatively easy to find malfunctions.
+
+In this paper, we propose a containerized software load balancer. 
+Specifically we will implement a container which setup Linux kernel's load balancer functionality, 
+ipvs inside the container's net name space.
+We also discuss the feasibility of the proposed load balancer by comparing the performance with existing iptables and nginx based load balancer. 
+
+
+\subsection{Implementation}\label{Implementation}
 
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/ipvs-ingress-schem}
@@ -127,7 +157,101 @@ Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernete
 \label{fig:ipvs-ingress-schem}
 \end{figure}
 
-\section{Performance Measurement}
+Figure~\ref{fig:ipvs-ingress-schem} show the schematic diagram of a container that functions as a load balancer.
+Inside the container, two daemons, controller and keepalived are run.
+The keepalived is a program which modifies linux kernels ipvs rules depending on the configuration file, ipvs.conf.
+The keepalived is also capable of healthchecking the liveliness of realserver, 
+which is a combination of IP address and port number of the target pods. 
+If the healthcheck to a real server fails, the keepalived will remove that real server from the ipvs rules.
+
+The controller monitors information of runing pods of a service in the Kuberenetes cluster by consulting the apiserver on the master server.
+Whenever pods are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
+Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules.  
+
+The actual controller\cite{ktaka_ccmp_2017_826894} has been implemented using ingress controller\cite{K8sIngress2017} scheme of the Kubernetes.
+By importing existing Golang package, ”k8s.io/ingress/core/pkg/ingress”,
+we only needed 120 lines of code.  
+
+In this way, the ipvs's balancing rules inside linux kernel are maintained so that it could distribute the incoming traffic only to the living pods.
+
+In order to let the kernel to load required kernel modules inside a container, 
+we needed to add the CAP\_SYS\_MODULE capability to the container, and also needed to mount the /lib/module of the node's file system 
+on the container's file system.   
+
+In order to let the keepalived manipulate kernel's ipvs rules, 
+we needed to add CAP\_NET\_ADMIN capability to the container.
+
+There is a explanation in a reference\cite{Pai2016} about some of the capbilities that is dropped inside docker containers.
+
+\begin{figure}
+\begin{minipage}{0.8\columnwidth}
+\begin{verbatim}
+
+virtual_server fwmark 1 {
+  delay_loop 5
+  lb_algo lc
+  lb_kind NAT
+  protocol TCP
+  real_server 172.16.21.2 80 {
+    uthreshold 20000
+    TCP_CHECK {
+      connect_timeout 5
+      connect_port 80
+    }
+  }
+  real_server 172.16.80.2 80 {
+    uthreshold 20000
+    TCP_CHECK {
+      connect_timeout 5
+      connect_port 80
+    }
+  }
+}
+
+\end{verbatim}
+\end{minipage}
+\caption{An example of ipvs.conf}
+\label{fig:ipvs.conf}
+\end{figure}
+
+\begin{figure}
+\begin{minipage}{\columnwidth}
+\small
+\begin{verbatim}
+
+# kubectl exec -it ipvs-controller-4117154712-kv633 -- ipvsadm -L
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port Forward Weight ActiveConn InActConn
+FWM  1 lc
+  -> 172.16.21.2:80      Masq    1      0          0         
+  -> 172.16.80.2:80      Masq    1      0          0
+
+\end{verbatim}
+\end{minipage}
+\caption{An example of ipvs balancing rules}
+\label{fig:ipvs rule}
+\end{figure}
+
+Figure~\ref{fig:ipvs.conf} shows an example of ipvs.conf file generated by the controller. 
+Shown in Figure~\ref{fig:ipvs rule} is the correspoding ipvs's balancing rules.
+We can see that the packet with {\tt fwmark=1}\cite{BertHubert2002} is distributed to 172.16.21.2:80 and 172.16.80.2:80 
+using masquarade mode(Masq)\cite{Zhang2000} and least connection(lc)\cite{Zhang2000} balancing algorithm.   
+
+\section{Performance Measurement}\label{Performance Measurement}
+
+We carried out performance measurment of the proposed load balancer using benchmark program called, wrk\cite{Glozer2016}.
+We also measured performance of iptables's DNAT load balancing functionality and nginx layer 7 load balancer, for comparison.
+
+When creating Kubernetes cluster, an overlay network\cite{Sill2016,Marmol2015} is often used. 
+Among available overlay networks, the flannel\cite{CoreOSFlannel} is a popular one.
+We compared each of the three backends\cite{CoreOSFlannelBackend}, {\it i.e.} operating modes of the flannel for the benchmark of the load balancers.
+
+It is known that distributing the handling of interrupts from the NIC 
+and the following IP protocol processing, among multiple cores are important.
+
+In order to derive best performance, we also investigated how this would affect the performance of load balancers.
+
 \subsection{Benchmarking method}
 
 \begin{figure}
@@ -135,6 +259,43 @@ Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernete
 \caption{Benchmark setup}
 \label{fig:benchmark-schem}
 \end{figure}
+
+Using wrk, we measured performance of the load balancers.
+Figure~\ref{fig:benchmark-schem} shows schematic diagram of the experimental setups.
+
+Having deployed pods running nginx web servers which returns IP address of the pod itself,
+we set up the ipvs, iptables and nginx load balancers on one of the node servers. 
+
+The HTTP GET requests are sent out from the wrk on the client machine toward the node servers.
+The destination IP address and port number is chosen 
+depending on the type of the load balancer on which the measurment is performed.
+The load balancer on the node server then distribute the requests to pods.
+Each pod will return HTTP responses to the load balancer and the load balancer will then return the respose to the client.
+
+The number of responses received by the wrk on the client is counted, 
+then the (normally processed) request/sec is obtained. 
+
+\begin{figure}
+\begin{minipage}{\columnwidth}
+\small
+\begin{verbatim}
+
+# kubectl exec -it ipvs-controller-4117154712-kv633 -- ipvsadm -L
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port Forward Weight ActiveConn InActConn
+FWM  1 lc
+  -> 172.16.21.2:80      Masq    1      0          0         
+  -> 172.16.80.2:80      Masq    1      0          0
+
+\end{verbatim}
+\end{minipage}
+\caption{An example of ipvs balancing rules}
+\label{fig:ipvs rule}
+\end{figure}
+
+
+
 
 \subsection{Overlay network}
 
@@ -146,7 +307,8 @@ Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernete
 
 
 \subsection{Distributed packet handling}
-\section{Result and Discussion}
+
+\section{Result and Discussion}\label{Result and Discussion}
 
 \begin{figure*}
 \includegraphics[width=\textwidth]{Figs/iptables_3figs}
@@ -168,8 +330,34 @@ Figure~\ref{fig:K8sProposed} shows schematic diagram of a conventional Kubernete
 
 
 
-The \textit{proceedings} are the records of a conference.\footnote{This
-  is a footnote}  ACM seeks
+to give these conference by-products a uniform, high-quality
+appearance.  To do this, ACM has some rigid requirements for the
+format of the proceedings documents: there is a specified format
+(balanced double columns), a specified set of fonts (Arial or
+Helvetica and Times Roman) in certain specified sizes, a specified
+live area, centered on the page, specified size of margins, specified
+column width and gutter size.
+to give these conference by-products a uniform, high-quality
+appearance.  To do this, ACM has some rigid requirements for the
+format of the proceedings documents: there is a specified format
+(balanced double columns), a specified set of fonts (Arial or
+Helvetica and Times Roman) in certain specified sizes, a specified
+live area, centered on the page, specified size of margins, specified
+column width and gutter size.
+to give these conference by-products a uniform, high-quality
+appearance.  To do this, ACM has some rigid requirements for the
+format of the proceedings documents: there is a specified format
+(balanced double columns), a specified set of fonts (Arial or
+Helvetica and Times Roman) in certain specified sizes, a specified
+live area, centered on the page, specified size of margins, specified
+column width and gutter size.
+to give these conference by-products a uniform, high-quality
+appearance.  To do this, ACM has some rigid requirements for the
+format of the proceedings documents: there is a specified format
+(balanced double columns), a specified set of fonts (Arial or
+Helvetica and Times Roman) in certain specified sizes, a specified
+live area, centered on the page, specified size of margins, specified
+column width and gutter size.
 to give these conference by-products a uniform, high-quality
 appearance.  To do this, ACM has some rigid requirements for the
 format of the proceedings documents: there is a specified format
@@ -178,316 +366,8 @@ Helvetica and Times Roman) in certain specified sizes, a specified
 live area, centered on the page, specified size of margins, specified
 column width and gutter size.
 
-\section{The Body of The Paper}
-Typically, the body of a paper is organized into a hierarchical
-structure, with numbered or unnumbered headings for sections,
-subsections, sub-subsections, and even smaller sections.  The command
-\texttt{{\char'134}section} that precedes this paragraph is part of
-such a hierarchy.\footnote{This is a footnote.} \LaTeX\ handles the
-numbering and placement of these headings for you, when you use the
-appropriate heading commands around the titles of the headings.  If
-you want a sub-subsection or smaller part to be unnumbered in your
-output, simply append an asterisk to the command name.  Examples of
-both numbered and unnumbered headings will appear throughout the
-balance of this sample document.
 
-Because the entire article is contained in the \textbf{document}
-environment, you can indicate the start of a new paragraph with a
-blank line in your input file; that is why this sentence forms a
-separate paragraph.
-
-\subsection{Type Changes and {\itshape Special} Characters}
-
-We have already seen several typeface changes in this sample.  You can
-indicate italicized words or phrases in your text with the command
-\texttt{{\char'134}textit}; emboldening with the command
-\texttt{{\char'134}textbf} and typewriter-style (for instance, for
-computer code) with \texttt{{\char'134}texttt}.  But remember, you do
-not have to indicate typestyle changes when such changes are part of
-the \textit{structural} elements of your article; for instance, the
-heading of this subsection will be in a sans serif\footnote{Another
-  footnote here.  Let's make this a rather long one to see how it
-  looks.} typeface, but that is handled by the document class file.
-Take care with the use of\footnote{Another footnote.}  the
-curly braces in typeface changes; they mark the beginning and end of
-the text that is to be in the different typeface.
-
-You can use whatever symbols, accented characters, or non-English
-characters you need anywhere in your document; you can find a complete
-list of what is available in the \textit{\LaTeX\ User's Guide}
-\cite{Lamport:LaTeX}.
-
-\subsection{Math Equations}
-You may want to display math equations in three distinct styles:
-inline, numbered or non-numbered display.  Each of
-the three are discussed in the next sections.
-
-\subsubsection{Inline (In-text) Equations}
-A formula that appears in the running text is called an
-inline or in-text formula.  It is produced by the
-\textbf{math} environment, which can be
-invoked with the usual \texttt{{\char'134}begin\,\ldots{\char'134}end}
-construction or with the short form \texttt{\$\,\ldots\$}. You
-can use any of the symbols and structures,
-from $\alpha$ to $\omega$, available in
-\LaTeX~\cite{Lamport:LaTeX}; this section will simply show a
-few examples of in-text equations in context. Notice how
-this equation:
-\begin{math}
-  \lim_{n\rightarrow \infty}x=0
-\end{math},
-set here in in-line math style, looks slightly different when
-set in display style.  (See next section).
-
-\subsubsection{Display Equations}
-A numbered display equation---one set off by vertical space from the
-text and centered horizontally---is produced by the \textbf{equation}
-environment. An unnumbered display equation is produced by the
-\textbf{displaymath} environment.
-
-Again, in either environment, you can use any of the symbols
-and structures available in \LaTeX\@; this section will just
-give a couple of examples of display equations in context.
-First, consider the equation, shown as an inline equation above:
-\begin{equation}
-  \lim_{n\rightarrow \infty}x=0
-\end{equation}
-Notice how it is formatted somewhat differently in
-the \textbf{displaymath}
-environment.  Now, we'll enter an unnumbered equation:
-\begin{displaymath}
-  \sum_{i=0}^{\infty} x + 1
-\end{displaymath}
-and follow it with another numbered equation:
-\begin{equation}
-  \sum_{i=0}^{\infty}x_i=\int_{0}^{\pi+2} f
-\end{equation}
-just to demonstrate \LaTeX's able handling of numbering.
-
-\subsection{Citations}
-Citations to articles~\cite{bowman:reasoning,
-clark:pct, braams:babel, herlihy:methodology},
-conference proceedings~\cite{clark:pct} or maybe
-books \cite{Lamport:LaTeX, salas:calculus} listed
-in the Bibliography section of your
-article will occur throughout the text of your article.
-You should use BibTeX to automatically produce this bibliography;
-you simply need to insert one of several citation commands with
-a key of the item cited in the proper location in
-the \texttt{.tex} file~\cite{Lamport:LaTeX}.
-The key is a short reference you invent to uniquely
-identify each work; in this sample document, the key is
-the first author's surname and a
-word from the title.  This identifying key is included
-with each item in the \texttt{.bib} file for your article.
-
-The details of the construction of the \texttt{.bib} file
-are beyond the scope of this sample document, but more
-information can be found in the \textit{Author's Guide},
-and exhaustive details in the \textit{\LaTeX\ User's
-Guide} by Lamport~\shortcite{Lamport:LaTeX}.
-
-This article shows only the plainest form
-of the citation command, using \texttt{{\char'134}cite}.
-
-Some examples.  A paginated journal article \cite{Abril07}, an enumerated
-journal article \cite{Cohen07}, a reference to an entire issue \cite{JCohen96},
-a monograph (whole book) \cite{Kosiur01}, a monograph/whole book in a series (see 2a in spec. document)
-\cite{Harel79}, a divisible-book such as an anthology or compilation \cite{Editor00}
-followed by the same example, however we only output the series if the volume number is given
-\cite{Editor00a} (so Editor00a's series should NOT be present since it has no vol. no.),
-a chapter in a divisible book \cite{Spector90}, a chapter in a divisible book
-in a series \cite{Douglass98}, a multi-volume work as book \cite{Knuth97},
-an article in a proceedings (of a conference, symposium, workshop for example)
-(paginated proceedings article) \cite{Andler79}, a proceedings article
-with all possible elements \cite{Smith10}, an example of an enumerated
-proceedings article \cite{VanGundy07},
-an informally published work \cite{Harel78}, a doctoral dissertation \cite{Clarkson85},
-a master's thesis: \cite{anisi03}, an online document / world wide web
-resource \cite{Thornburg01, Ablamowicz07, Poker06}, a video game (Case 1) \cite{Obama08} and (Case 2) \cite{Novak03}
-and \cite{Lee05} and (Case 3) a patent \cite{JoeScientist001},
-work accepted for publication \cite{rous08}, 'YYYYb'-test for prolific author
-\cite{SaeediMEJ10} and \cite{SaeediJETC10}. Other cites might contain
-'duplicate' DOI and URLs (some SIAM articles) \cite{Kirschmer:2010:AEI:1958016.1958018}.
-Boris / Barbara Beeton: multi-volume works as books
-\cite{MR781536} and \cite{MR781537}.
-
-A couple of citations with DOIs: \cite{2004:ITE:1009386.1010128,
-  Kirschmer:2010:AEI:1958016.1958018}. 
-
-Online citations: \cite{TUGInstmem, Thornburg01, CTANacmart}.  
-
-
-\subsection{Tables}
-Because tables cannot be split across pages, the best
-placement for them is typically the top of the page
-nearest their initial cite.  To
-ensure this proper ``floating'' placement of tables, use the
-environment \textbf{table} to enclose the table's contents and
-the table caption.  The contents of the table itself must go
-in the \textbf{tabular} environment, to
-be aligned properly in rows and columns, with the desired
-horizontal and vertical rules.  Again, detailed instructions
-on \textbf{tabular} material
-are found in the \textit{\LaTeX\ User's Guide}.
-
-Immediately following this sentence is the point at which
-Table~\ref{tab:freq} is included in the input file; compare the
-placement of the table here with the table in the printed
-output of this document.
-
-\begin{table}
-  \caption{Frequency of Special Characters}
-  \label{tab:freq}
-  \begin{tabular}{ccl}
-    \toprule
-    Non-English or Math&Frequency&Comments\\
-    \midrule
-    \O & 1 in 1,000& For Swedish names\\
-    $\pi$ & 1 in 5& Common in math\\
-    \$ & 4 in 5 & Used in business\\
-    $\Psi^2_1$ & 1 in 40,000& Unexplained usage\\
-  \bottomrule
-\end{tabular}
-\end{table}
-
-To set a wider table, which takes up the whole width of the page's
-live area, use the environment \textbf{table*} to enclose the table's
-contents and the table caption.  As with a single-column table, this
-wide table will ``float'' to a location deemed more desirable.
-Immediately following this sentence is the point at which
-Table~\ref{tab:commands} is included in the input file; again, it is
-instructive to compare the placement of the table here with the table
-in the printed output of this document.
-
-
-\begin{table*}
-  \caption{Some Typical Commands}
-  \label{tab:commands}
-  \begin{tabular}{ccl}
-    \toprule
-    Command &A Number & Comments\\
-    \midrule
-    \texttt{{\char'134}author} & 100& Author \\
-    \texttt{{\char'134}table}& 300 & For tables\\
-    \texttt{{\char'134}table*}& 400& For wider tables\\
-    \bottomrule
-  \end{tabular}
-\end{table*}
-% end the environment with {table*}, NOTE not {table}!
-
-It is strongly recommended to use the package booktabs~\cite{Fear05}
-and follow its main principles of typography with respect to tables:
-\begin{enumerate}
-\item Never, ever use vertical rules.
-\item Never use double rules.
-\end{enumerate}
-It is also a good idea not to overuse horizontal rules.
-
-
-\subsection{Figures}
-
-Like tables, figures cannot be split across pages; the best placement
-for them is typically the top or the bottom of the page nearest their
-initial cite.  To ensure this proper ``floating'' placement of
-figures, use the environment \textbf{figure} to enclose the figure and
-its caption.
-
-This sample document contains examples of \texttt{.eps} files to be
-displayable with \LaTeX.  If you work with pdf\LaTeX, use files in the
-\texttt{.pdf} format.  Note that most modern \TeX\ systems will convert
-\texttt{.eps} to \texttt{.pdf} for you on the fly.  More details on
-each of these are found in the \textit{Author's Guide}.
-
-\begin{figure}
-\includegraphics{Figs/fly}
-\caption{A sample black and white graphic.}
-\end{figure}
-
-\begin{figure}
-\includegraphics{Figs/cats}
-\caption{A sample black and white graphic.}
-\end{figure}
-
-\begin{figure}
-\includegraphics[height=1in, width=1in]{Figs/fly}
-\caption{A sample black and white graphic
-that has been resized with the \texttt{includegraphics} command.}
-\end{figure}
-
-
-As was the case with tables, you may want a figure that spans two
-columns.  To do this, and still to ensure proper ``floating''
-placement of tables, use the environment \textbf{figure*} to enclose
-the figure and its caption.  And don't forget to end the environment
-with \textbf{figure*}, not \textbf{figure}!
-
-\begin{figure*}
-\includegraphics{Figs/flies}
-\caption{A sample black and white graphic
-that needs to span two columns of text.}
-\end{figure*}
-
-
-\begin{figure}
-\includegraphics[height=1in, width=1in]{Figs/rosette}
-\caption{A sample black and white graphic that has
-been resized with the \texttt{includegraphics} command.}
-\end{figure}
-
-\subsection{Theorem-like Constructs}
-
-Other common constructs that may occur in your article are the forms
-for logical constructs like theorems, axioms, corollaries and proofs.
-ACM uses two types of these constructs:  theorem-like and
-definition-like.
-
-Here is a theorem:
-\begin{theorem}
-  Let $f$ be continuous on $[a,b]$.  If $G$ is
-  an antiderivative for $f$ on $[a,b]$, then
-  \begin{displaymath}
-    \int^b_af(t)\,dt = G(b) - G(a).
-  \end{displaymath}
-\end{theorem}
-
-Here is a definition:
-\begin{definition}
-  If $z$ is irrational, then by $e^z$ we mean the
-  unique number that has
-  logarithm $z$:
-  \begin{displaymath}
-    \log e^z = z.
-  \end{displaymath}
-\end{definition}
-
-The pre-defined theorem-like constructs are \textbf{theorem},
-\textbf{conjecture}, \textbf{proposition}, \textbf{lemma} and
-\textbf{corollary}.  The pre-defined de\-fi\-ni\-ti\-on-like constructs are
-\textbf{example} and \textbf{definition}.  You can add your own
-constructs using the \textsl{amsthm} interface~\cite{Amsthm15}.  The
-styles used in the \verb|\theoremstyle| command are \textbf{acmplain}
-and \textbf{acmdefinition}.
-
-Another construct is \textbf{proof}, for example,
-
-\begin{proof}
-  Suppose on the contrary there exists a real number $L$ such that
-  \begin{displaymath}
-    \lim_{x\rightarrow\infty} \frac{f(x)}{g(x)} = L.
-  \end{displaymath}
-  Then
-  \begin{displaymath}
-    l=\lim_{x\rightarrow c} f(x)
-    = \lim_{x\rightarrow c}
-    \left[ g{x} \cdot \frac{f(x)}{g(x)} \right ]
-    = \lim_{x\rightarrow c} g(x) \cdot \lim_{x\rightarrow c}
-    \frac{f(x)}{g(x)} = 0\cdot L = 0,
-  \end{displaymath}
-  which contradicts our assumption that $l\neq 0$.
-\end{proof}
-
-\section{Conclusions}
+\section{Conclusions}\label{Conclusions}
 This paragraph will end the body of this sample document.
 Remember that you might still have Acknowledgments or
 Appendices; brief samples of these
@@ -499,47 +379,6 @@ do with the present subject and are used as
 examples only.
 %\end{document}  % This is where a 'short' article might terminate
 
-
-
-\appendix
-%Appendix A
-\section{Headings in Appendices}
-The rules about hierarchical headings discussed above for
-the body of the article are different in the appendices.
-In the \textbf{appendix} environment, the command
-\textbf{section} is used to
-indicate the start of each Appendix, with alphabetic order
-designation (i.e., the first is A, the second B, etc.) and
-a title (if you include one).  So, if you need
-hierarchical structure
-\textit{within} an Appendix, start with \textbf{subsection} as the
-highest level. Here is an outline of the body of this
-document in Appendix-appropriate form:
-\subsection{Introduction}
-\subsection{The Body of the Paper}
-\subsubsection{Type Changes and  Special Characters}
-\subsubsection{Math Equations}
-\paragraph{Inline (In-text) Equations}
-\paragraph{Display Equations}
-\subsubsection{Citations}
-\subsubsection{Tables}
-\subsubsection{Figures}
-\subsubsection{Theorem-like Constructs}
-\subsubsection*{A Caveat for the \TeX\ Expert}
-\subsection{Conclusions}
-\subsection{References}
-Generated by bibtex from your \texttt{.bib} file.  Run latex,
-then bibtex, then latex twice (to resolve references)
-to create the \texttt{.bbl} file.  Insert that \texttt{.bbl}
-file into the \texttt{.tex} source file and comment out
-the command \texttt{{\char'134}thebibliography}.
-% This next section command marks the start of
-% Appendix B, and does not continue the present hierarchy
-\section{More Help for the Hardy}
-
-Of course, reading the source code is always useful.  The file
-\path{acmart.pdf} contains both the user guide and the commented
-code.
 
 \begin{acks}
   The authors would like to thank Dr. Yuhua Li for providing the
