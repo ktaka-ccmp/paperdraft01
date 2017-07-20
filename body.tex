@@ -396,24 +396,91 @@ Performance of the load balancers are expected to be infulenced by the overhead 
 
 We assumed the host-gw mode, where there is no overhead due to encapsulation, will result in the best performance.
 That was the case as shown in Section~\ref{Result and Discussion}.
-However, this mode has the following significant drawback.
+However, this mode has a significant drawback.
 
 Since it simply send out a packet without encapsulation, 
 if there is a gateway between node servers, 
 it will drop the packet because it does not know where to send the packet to.
 
 This is known to happen in the case of cloud providers.  
+We have investigated which backend of the flannel is usable on AWS, GCP and on-premise datacenters.
+The results are summarized in Table~\ref{tab:Viable flannel backends}
 
-\begin{figure}
-\includegraphics[width=\columnwidth]{Figs/flannel-packet-diagram}
-\caption{frame diagram}
-\label{fig:flannel-packet-diagram}
-\end{figure}
+In the case of GCP, an IP address of /32 is assigned to every VM host.
+Every communication between VMs goes through GCP gateway.
+As for AWS, if VMs are within the same subnet, they communicate directly.
+However a communication is via AWS's gateway if the VMs reside in different subnets.
+The gateways do not have knowledge of the flannel overlay network, 
+thus prohibit the use of the host-gw mode of the flannel.  
+
+\begin{table}
+  \begin{tabular}{lccc}
+    \toprule
+    flannel backend & On-premise & GCP & AWS \\
+    \midrule
+    host-gw & OK & NG & (OK) \\
+    vxlan & OK & OK & OK \\
+    udp & OK & OK & OK \\
+    \bottomrule
+\end{tabular}
+  \caption{Viable flannel backends}
+  \label{tab:Viable flannel backends}
+\end{table}
+
+In the experiment, we compared the performace of load balancers when different backend of the flannel is used. 
 
 
 \subsection{Distributed packet handling}
 
+\begin{figure}
+\begin{minipage}{0.8\columnwidth}
+\small
+\begin{verbatim}
 
+# cat /proc/interrupts |egrep eth|awk '{print $1,$19}'
+81: eth0-tx-0
+82: eth0-rx-1
+83: eth0-rx-2
+84: eth0-rx-3
+85: eth0-rx-4
+
+\end{verbatim}
+\end{minipage}
+\caption{RX/TX queues of the hardware}
+\label{fig:rx-queue}
+\end{figure}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\underline{\textbf{rss=on}}
+echo 1 > /proc/irq/82/smp_affinity
+echo 2 > /proc/irq/83/smp_affinity
+echo 4 > /proc/irq/84/smp_affinity
+echo 8 > /proc/irq/85/smp_affinity
+\end{Verbatim}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\underline{\textbf{rss=off}}
+echo 1 > /proc/irq/82/smp_affinity
+echo 1 > /proc/irq/83/smp_affinity
+echo 1 > /proc/irq/84/smp_affinity
+echo 1 > /proc/irq/85/smp_affinity
+\end{Verbatim}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\underline{\textbf{rps=on}}
+echo fefe > /sys/class/net/eth0/queues/rx-0/rps_cpus
+echo fefe > /sys/class/net/eth0/queues/rx-1/rps_cpus
+echo fefe > /sys/class/net/eth0/queues/rx-2/rps_cpus
+echo fefe > /sys/class/net/eth0/queues/rx-3/rps_cpus
+\end{Verbatim}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+\underline{\textbf{rps=off}}
+echo 0 > /sys/class/net/eth0/queues/rx-0/rps_cpus
+echo 0 > /sys/class/net/eth0/queues/rx-1/rps_cpus
+echo 0 > /sys/class/net/eth0/queues/rx-2/rps_cpus
+echo 0 > /sys/class/net/eth0/queues/rx-3/rps_cpus
+\end{Verbatim}
 
 
 \section{Result and Discussion}\label{Result and Discussion}
