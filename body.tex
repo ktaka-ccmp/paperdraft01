@@ -532,15 +532,9 @@ echo 0 > /sys/class/net/eth0/queues/rx-3/rps_cpus
 \end{Verbatim}
 
 The hexadecimal {\tt fefe} is {\tt 1111 1110 1111 1110}, 
-thus this setting will allow distributing protocol processing except CPU0 and CPU8.
+thus this setting will allow distributing protocol processing to all of the cores except for CPU0 and CPU8.
 
 \section{Result and Discussion}\label{Result and Discussion}
-
-\begin{figure*}
-\includegraphics[width=\textwidth]{Figs/iptables_3figs}
-\caption{iptables results}
-\label{fig:iptabls3figs}
-\end{figure*}
 
 \begin{figure*}
 \includegraphics[width=\textwidth]{Figs/ipvs_3figs}
@@ -548,12 +542,50 @@ thus this setting will allow distributing protocol processing except CPU0 and CP
 \label{fig:ipvs3figs}
 \end{figure*}
 
+\begin{figure*}
+\includegraphics[width=\textwidth]{Figs/iptables_3figs}
+\caption{iptables results}
+\label{fig:iptabls3figs}
+\end{figure*}
+
+
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/ipvs-iptables-nginx_2figs}
 \caption{ipvs and iptables comparison}
 \label{fig:ipvs-iptables-nginx_2figs}
 \end{figure}
 
+Figure~\ref{fig:ipvs3figs} shows benchmark results for ipvs load balancer. 
+All of them shows Request/sec numebrs as a function of the number of nginx pods.
+As far as the type of the overlay network is concerned, we measured the Request/sec for 3 types of the backend of flannel, 
+host-gw(Figure~\ref{fig:ipvs3figs}(a)), vxlan(Figure~\ref{fig:ipvs3figs}(b)) and udp(Figure~\ref{fig:ipvs3figs}(c)).
+
+The rss and rps used are the followings: 
+\begin{verbatime}
+(rss, rps) = (off, off)
+           = (on,  off)
+           = (off, on)
+\end{verbatime}
+
+Exept for the udp cases, there exists general tendency, 
+where as the pod number increases the resulting performance increases linearly, 
+then eventually saturate at some point.
+
+Those saturated performance indicate the maximum performance of ipvs loadbalancer.
+What limits the maximum peformance depends on the experimental conditions.
+From the results in Figures~\ref{fig:ipvs3figs}(a,b), if we turn off distributed packet processing,
+{\it i.e.} when {\tt (rss, rps) = (off, off)}, the performance significantly degrades. 
+In this case the bottleneck of the performance is mainly single core packet processing.
+
+If we compare the results for the cases when {\tt (rss, rps) = (on, off)} and (rss, rps) = {\tt (rss, rps) = (off, on)},
+the latter is better than the former.
+It is understandable, since in the case of {\tt rps = on} 8 physical cores are used whereas 
+in the case of {\tt rss = on } only 4 cores are used on our hardware used in the experiment.
+
+Therefore the performance bottleneck of the case when {\tt rss = on } is still 
+considered to be the packet proccessing in those cpu cores.
+
+The performance bottleneck of the case when {\tt rps = on } is not clear.
 
 
 to give these conference by-products a uniform, high-quality
