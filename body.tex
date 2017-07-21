@@ -478,7 +478,6 @@ Figure~\ref{fig:rx-queue} shows  the IRQ number assinment to those NIC queues.
 83: eth0-rx-2
 84: eth0-rx-3
 85: eth0-rx-4
-
 # obtained from /proc/interrupts 
 
 \end{verbatim}
@@ -499,58 +498,83 @@ we should set \enquote{/proc/irq/82/smp\_affinity}
 to binary number {\tt 0001}, which is 1 in hexadecimal value.
 And in order to route the interrupt for eth0-rx-2 to CPU1, we 
 should set \enquote{/proc/irq/83/smp\_affinity} 
-to binary number {\tt 0010}, which is 2 in hexadecimal.
+to binary number {\tt 0010}, which is 2 in hexadecimal value.
 
+So, we can distribute interrupts from 4 rx-queues to CPU0, CPU1, CPU2 and CPU3, by the following settings: 
 
-So, we distributed interrupts from 4 rx queues to CPU0, CPU1, CPU2 and CPU3, by the following settings: 
-
+\begin{center}
+\begin{minipage}{0.8\columnwidth}
 \begin{Verbatim}[commandchars=\\\{\}]
+
 \underline{\textbf{rss=on}}
 echo 1 > /proc/irq/82/smp_affinity
 echo 2 > /proc/irq/83/smp_affinity
 echo 4 > /proc/irq/84/smp_affinity
 echo 8 > /proc/irq/85/smp_affinity
+
 \end{Verbatim}
+\end{minipage}
+\end{center}
 
-In this paper, we will call this setting {\tt rss = on}.
-On the other hand the {\tt rss = off} is the following settings:
+In this paper, we will refer this setting as {\tt rss = on}.
+On the other hand the {\tt rss = off} means the following settings:
 
+\begin{center}
+\begin{minipage}{0.8\columnwidth}
 \begin{Verbatim}[commandchars=\\\{\}]
+
 \underline{\textbf{rss=off}}
 echo 1 > /proc/irq/82/smp_affinity
 echo 1 > /proc/irq/83/smp_affinity
 echo 1 > /proc/irq/84/smp_affinity
 echo 1 > /proc/irq/85/smp_affinity
+
 \end{Verbatim}
+\end{minipage}
+\end{center}
 
-In this case, interrupt from any of rx queue is routed to CPU0.
+In this case, interrupt from any of rx-queue is routed to CPU0.
 
-The rps will distribute protocol processing of the packet after the interrupt handling by placing the packet
+The rps will distribute protocol processing of the packet by placing the packet
 on the desired CPU's backlog queue and wake up that CPU using inter-processor interrupts.
-
 The rps is effective when the NIC does not have multiple receive queues or when the number of the queues is 
 much smaller than the number of CPU cores, as in the case of our experiment.
 
-We have used the following settings:
+We have used the following settings to enable the rps:
 
+\begin{center}
+\begin{minipage}{0.8\columnwidth}
 \begin{Verbatim}[commandchars=\\\{\}]
+
 \underline{\textbf{rps=on}}
 echo fefe > /sys/class/net/eth0/queues/rx-0/rps_cpus
 echo fefe > /sys/class/net/eth0/queues/rx-1/rps_cpus
 echo fefe > /sys/class/net/eth0/queues/rx-2/rps_cpus
 echo fefe > /sys/class/net/eth0/queues/rx-3/rps_cpus
-\end{Verbatim}
 
+\end{Verbatim}
+\end{minipage}
+\end{center}
+
+In this paper, we will refer this setting as {\tt rps = on}.
+On the other hand the {\tt rps = off} means the following settings:
+
+\begin{center}
+\begin{minipage}{0.8\columnwidth}
 \begin{Verbatim}[commandchars=\\\{\}]
+
 \underline{\textbf{rps=off}}
 echo 0 > /sys/class/net/eth0/queues/rx-0/rps_cpus
 echo 0 > /sys/class/net/eth0/queues/rx-1/rps_cpus
 echo 0 > /sys/class/net/eth0/queues/rx-2/rps_cpus
 echo 0 > /sys/class/net/eth0/queues/rx-3/rps_cpus
-\end{Verbatim}
 
-The hexadecimal {\tt fefe} is {\tt 1111 1110 1111 1110}, 
-thus this setting will allow distributing protocol processing to all of the cores except for CPU0 and CPU8.
+\end{Verbatim}
+\end{minipage}
+\end{center}
+
+The hexadecimal value \enquote{fefe} represented as \enquote{1111 1110 1111 1110} in binary, 
+thus this setting will allow distributing protocol processing to all of the CPUs except for CPU0 and CPU8.
 
 \section{Result and Discussion}\label{Result and Discussion}
 
@@ -574,71 +598,73 @@ thus this setting will allow distributing protocol processing to all of the core
 \end{figure}
 
 Figure~\ref{fig:ipvs3figs} shows benchmark results for ipvs load balancer. 
-All of them shows Request/sec numebrs as a function of the number of nginx pods.
-As far as the type of the overlay network is concerned, we measured the Request/sec for 3 types of the backend of flannel, 
+All of them shows the performance in terms of Request/sec as a function of the number of nginx web server pods.
+As for the overlay network, we measured the performance for 3 backend mode of the flannel, 
 host-gw(Figure~\ref{fig:ipvs3figs}(a)), vxlan(Figure~\ref{fig:ipvs3figs}(b)) and udp(Figure~\ref{fig:ipvs3figs}(c)).
 
-The rss and rps used are the followings: 
+The rss and rps ssettings compared are the followings: 
 
 \begin{center}
 \begin{minipage}{0.8\columnwidth}
 \begin{verbatim}
 (rss, rps) = (off, off)
-           = (on,  off)
-           = (off, on)
+           = (on , off)
+           = (off, on )
 \end{verbatim}
 \end{minipage}
 \end{center}
 
-Exept for the udp cases, there exists general tendency, 
-where as the pod number increases the resulting performance increases linearly, 
-then eventually saturate at some point.
+Exept for the udp cases, there seems to exist general tendency, 
+where as the pod number increases the resulting performance increases linearly to some point, 
+then eventually saturate.
 
 Those saturated performance indicate the maximum performance of ipvs loadbalancer.
-What limits the maximum peformance depends on the experimental conditions.
+What limits the maximum peformance depends on the flannel backend type and on the (rss, rps) settings.
 From the results in Figures~\ref{fig:ipvs3figs}(a,b), if we turn off distributed packet processing,
-{\it i.e.} when {\tt (rss, rps) = (off, off)}, the performance significantly degrades. 
-In this case the bottleneck of the performance is mainly single core packet processing.
+{\it i.e.} when \enquote{(rss, rps) = (off, off)}, the performance significantly degrades. 
+In this case the bottleneck of the performance is mainly due to single core packet processing.
 
-If we compare the results for the cases when {\tt (rss, rps) = (on, off)} and (rss, rps) = {\tt (rss, rps) = (off, on)},
+If we compare the results for the cases when \enquote{(rss, rps) = (on, off)} and \enquote{(rss, rps) = (off, on)},
 the latter is better than the former.
-It is understandable, since in the case of {\tt rps = on} 8 physical cores are used whereas 
-in the case of {\tt rss = on } only 4 cores are used on our hardware used in the experiment.
+It is understandable, since in the case of \enquote{rps = on}, 8 physical cores are used whereas 
+in the case of \enquote{rss = on} only 4 cores are used on our hardwares.
 
-Therefore the performance bottleneck of the case when {\tt rss = on } is still 
-considered to be the packet proccessing in those cpu cores.
-The performance bottleneck of the case when {\tt rps = on } is not clear.
+The performance bottleneck of the case when \enquote{rss = on} is considered 
+to be due to the packet proccessing in those cpu cores.
+What limit the performance for the case when \enquote{rps = on} is not clear yet.
 
-As far as the comprison among the type of the flannel backend is concerned, 
+When we compared the performance among the type of the flannel backend, 
 the host-gw where no encapsulation is coducted has the highest performance,
 followed by the vxlan where the linux kernel encapsulate the ethernet frame.
 The udp where flanneld itself encapsulate the IP packet has the significantly lower performances.
 
 Figure~\ref{fig:iptabls3figs} show the benchmark results for the load balancer 
-functionality the iptables DNAT. 
+functionality of the iptables DNAT. 
 The performance value increases as the number of the pod increases linearly, 
-then at some point come to the saturation, as was the case with ipvs results.
+then at some point comes to the saturation, as was the case with ipvs results.
 
 If we compare the results for different packet handling settings, the highest performance is 
-obtained for the case when the rps is enable followed by the case when the rss is enabled. 
-The pefomance result for the case when both settings are disabled resulted in the 
+obtained for the case when \enquote{(rss, rps) = (off on)}, followed by the case when \enquote{(rss, rps) = (on, off)}. 
+The pefomance result for the case when \enquote{(rss, rps) = (off, off)} resulted in the 
 poorest performance as was the case for the ipvs.
 
-As for the type of the flannel backend host-gw has the highest performance followed 
+As for the type of the flannel backend, the host-gw has the highest performance followed 
 bye the vxlan. The udp backend totally degrade the performance.
 
 Figure~\ref{fig:ipvs-iptables-nginx_2figs} compares the performance measurement results 
 among the load balancer type, namely, ipvs, iptables dnat and nginx.
-
 The proposed ipvs load blancer has almost equivalent performance as the existing iptables 
 dnat based load balancing functionality. 
+
 The nginx based load balancer significantly underperforms compared with two other methods.
 For the nginx load balancer the performance never increases even though the number of the 
-nginx web servers is increased.
-This is somehow understandable because the nginx as the web server in our experimet only 
-returns it's IP address, which is the lightest workload of it's kind.
-Therefore we can not expect performance improvement by just adding nginx as a load balancer 
-which is expected to have similar performance as the nginx web server with lightest work load.  
+nginx web servers pod is increased.
+This is understandable because the nginx as the web server in our experimet only 
+returns it's IP address, which is nearly the lightest workload.
+The performance of the nginx as a load balancer can not be much better than that of nginx as a web server 
+with lightest workload.
+Therefor we can expect that the nginx as a load balancer limit the performance to it's own maximum 
+even though the web server pods are added to the cluster.
 
 \section{Conclusions}\label{Conclusions}
 
@@ -649,9 +675,9 @@ Kuberenetes cluster system, and carried out performance measurement.
 The experimental result indicated that the proposed ipvs based load balancer
 had almost similar performance as the existing iptables dnat based load balancer functionality.
 We have also learned that only the vxlan and the udp backend operation modes can be used 
-in the cloud environment and that the udp backend significantly underperform the other backends.
+in the cloud environment and that the udp backend significantly underperform the vxlan backend.
 
-Further more we also learned that we have to pay attention to the distribution of packet proccessing
+Further more we also learned that the distribution of packet proccessing among multiple CPUs is very important
 when we need to draw a maximum perfromance from load balancers.
 
 
@@ -659,16 +685,6 @@ when we need to draw a maximum perfromance from load balancers.
 
 
 \begin{acks}
-  The authors would like to thank Dr. Yuhua Li for providing the
-  matlab code of  the \textit{BEPS} method. 
-
-  The authors would also like to thank the anonymous referees for
-  their valuable comments and helpful suggestions. The work is
-  supported by the \grantsponsor{GS501100001809}{National Natural
-    Science Foundation of
-    China}{http://dx.doi.org/10.13039/501100001809} under Grant
-  No.:~\grantnum{GS501100001809}{61273304}
-  and~\grantnum[http://www.nnsf.cn/youngscientsts]{GS501100001809}{Young
-    Scientsts' Support Program}.
+  The authors would like to thank lots of people.
 
 \end{acks}
