@@ -561,11 +561,16 @@ As far as the type of the overlay network is concerned, we measured the Request/
 host-gw(Figure~\ref{fig:ipvs3figs}(a)), vxlan(Figure~\ref{fig:ipvs3figs}(b)) and udp(Figure~\ref{fig:ipvs3figs}(c)).
 
 The rss and rps used are the followings: 
+
+\begin{center}
+\begin{minipage}{0.8\columnwidth}
 \begin{verbatim}
 (rss, rps) = (off, off)
            = (on,  off)
            = (off, on)
 \end{verbatim}
+\end{minipage}
+\end{center}
 
 Exept for the udp cases, there exists general tendency, 
 where as the pod number increases the resulting performance increases linearly, 
@@ -584,57 +589,54 @@ in the case of {\tt rss = on } only 4 cores are used on our hardware used in the
 
 Therefore the performance bottleneck of the case when {\tt rss = on } is still 
 considered to be the packet proccessing in those cpu cores.
-
 The performance bottleneck of the case when {\tt rps = on } is not clear.
 
+As far as the comprison among the type of the flannel backend is concerned, 
+the host-gw where no encapsulation is coducted has the highest performance,
+followed by the vxlan where the linux kernel encapsulate the ethernet frame.
+The udp where flanneld itself encapsulate the IP packet has the significantly lower performances.
 
-to give these conference by-products a uniform, high-quality
-appearance.  To do this, ACM has some rigid requirements for the
-format of the proceedings documents: there is a specified format
-(balanced double columns), a specified set of fonts (Arial or
-Helvetica and Times Roman) in certain specified sizes, a specified
-live area, centered on the page, specified size of margins, specified
-column width and gutter size.
-to give these conference by-products a uniform, high-quality
-appearance.  To do this, ACM has some rigid requirements for the
-format of the proceedings documents: there is a specified format
-(balanced double columns), a specified set of fonts (Arial or
-Helvetica and Times Roman) in certain specified sizes, a specified
-live area, centered on the page, specified size of margins, specified
-column width and gutter size.
-to give these conference by-products a uniform, high-quality
-appearance.  To do this, ACM has some rigid requirements for the
-format of the proceedings documents: there is a specified format
-(balanced double columns), a specified set of fonts (Arial or
-Helvetica and Times Roman) in certain specified sizes, a specified
-live area, centered on the page, specified size of margins, specified
-column width and gutter size.
-to give these conference by-products a uniform, high-quality
-appearance.  To do this, ACM has some rigid requirements for the
-format of the proceedings documents: there is a specified format
-(balanced double columns), a specified set of fonts (Arial or
-Helvetica and Times Roman) in certain specified sizes, a specified
-live area, centered on the page, specified size of margins, specified
-column width and gutter size.
-to give these conference by-products a uniform, high-quality
-appearance.  To do this, ACM has some rigid requirements for the
-format of the proceedings documents: there is a specified format
-(balanced double columns), a specified set of fonts (Arial or
-Helvetica and Times Roman) in certain specified sizes, a specified
-live area, centered on the page, specified size of margins, specified
-column width and gutter size.
+Figure~\ref{fig:iptabls3figs} show the benchmark results for the load balancer 
+functionality the iptables DNAT. 
+The performance value increases as the number of the pod increases linearly, 
+then at some point come to the saturation, as was the case with ipvs results.
 
+If we compare the results for different packet handling settings, the highest performance is 
+obtained for the case when the rps is enable followed by the case when the rss is enabled. 
+The pefomance result for the case when both settings are disabled resulted in the 
+poorest performance as was the case for the ipvs.
+
+As for the type of the flannel backend host-gw has the highest performance followed 
+bye the vxlan. The udp backend totally degrade the performance.
+
+Figure~\ref{fig:ipvs-iptables-nginx_2figs} compares the performance measurement results 
+among the load balancer type, namely, ipvs, iptables dnat and nginx.
+
+The proposed ipvs load blancer has almost equivalent performance as the existing iptables 
+dnat based load balancing functionality. 
+The nginx based load balancer significantly underperforms compared with two other methods.
+For the nginx load balancer the performance never increases even though the number of the 
+nginx web servers is increased.
+This is somehow understandable because the nginx as the web server in our experimet only 
+returns it's IP address, which is the lightest workload of it's kind.
+Therefore we can not expect performance improvement by just adding nginx as a load balancer 
+which is expected to have similar performance as the nginx web server with lightest work load.  
 
 \section{Conclusions}\label{Conclusions}
-This paragraph will end the body of this sample document.
-Remember that you might still have Acknowledgments or
-Appendices; brief samples of these
-follow.  There is still the Bibliography to deal with; and
-we will make a disclaimer about that here: with the exception
-of the reference to the \LaTeX\ book, the citations in
-this paper are to articles which have nothing to
-do with the present subject and are used as
-examples only.
+
+We proposed a portable load balancer for Kuberenetes cluster system, 
+which aims to enable migration of a container cluster for WEB services.
+In order to discuss the feasibilty of such a load balancer, we built 
+Kuberenetes cluster system, and carried out performance measurement.
+The experimental result indicated that the proposed ipvs based load balancer
+had almost similar performance as the existing iptables dnat based load balancer functionality.
+We have also learned that only the vxlan and the udp backend operation modes can be used 
+in the cloud environment and that the udp backend significantly underperform the other backends.
+
+Further more we also learned that we have to pay attention to the distribution of packet proccessing
+when we need to draw a maximum perfromance from load balancers.
+
+
 %\end{document}  % This is where a 'short' article might terminate
 
 
