@@ -1,8 +1,10 @@
 \documentclass[sigconf]{acmart}
 
 \usepackage{booktabs} % For formal tables
+
 \usepackage{listings}
 \usepackage{fancyvrb}
+\usepackage{csquotes}
 
 % Copyright
 %\setcopyright{none}
@@ -33,7 +35,7 @@
 \title{A Portable Load Balancer for Kubernetes Cluster}
 
 \author{Kimitoshi Takahashi}
-\authornote{Also affiliated with Cluster Computing Inc., ktaka@ccmp.jp}
+\authornote{Other affiliation: Cluster Computing Inc. Japan, ktaka@ccmp.jp}
 \orcid{/0000-0001-5774-6725}
 \affiliation{%
   \institution{The Graduate University for Advanced Studies}
@@ -83,21 +85,14 @@
 
 
 \begin{abstract}
-Recently Linux Containers are getting popular because of its lightweight nature.
-WEB service applications are often deployed as cluster of a containers.
-
-There are needs for those WEB services to be able to migrate to different cloud providers
-or on-premise data centers, for BCP(Business continuity planning) or DR(Disaster Recovery) purposes.
-
-The Kubernetes container management system is a prominet candidate to enable such container cluster migration.
-However since the Kubernetes relies on external loadbalancer to route the traffic from the internet into the nodes where containers run on, 
-it is not guaranteed to always work.
-There are many load balancers which kubernetes does not support, 
-especially if it is a hardware load balancer used in on-premise datacenters.
-
-To overcome this, we investigate feasibility of a software load balancer run in a container deployed by the Kubernets. 
-We will implement ipvs layer 4 load balancer as a container and compare the performances of such loadbalancers with convetional ones.
-
+The linux containers have become very popular these days due to its lightweightness.
+Many WEB services are deployed as a cluster of the containers.
+In order to make these WEB services to be able to migrate to different cloud providers
+or on-premise data centers, we propose a containerized software load balancer for a Kuberenetes cluster system.
+We will implement so that linux kernel's ipvs load balancer can be run as a container.
+We also compare the performance of proposed load balancer with convetional iptables dnat based load balancer functionality.
+Throught the experiment, the choice of the overlay network will be discussed.
+Also the importance of distributing packet processings to multiple cores will be exemplified.
 \end{abstract}
 
 %
