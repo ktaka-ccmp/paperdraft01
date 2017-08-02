@@ -1,42 +1,56 @@
 \section{Introduction}
 
-Recently Linux container clusters draw much attention because they are lightweight, portable and repeatable.
+Recently the Linux container clusters draw much attention because they are lightweight, portable and repeatable.
 Container clusters are generally more lightweight than Virtual Machine clusters, 
 because the containers share the kernel with host OS, still having separate execution environment . 
-They are generally portable because the process execution environments are packed
-into the tar archives.
+They are generally portable because the process execution environments are archived into the tar files.
 Whenever one attempts to run a container, the exact same file systems are restored from the archives, 
 even on totally different data centers. 
 This means a container cluster can provide the repeatable execution environment.
-
 For WEB services, the Linux containers are attractive because of the same reasons. 
-Furthermore, it is expected that WEB systems consisting of container cluster are 
+Furthermore, it is expected that WEB services consisting of container cluster are 
 capable of being easily migrated for Disaster Recovery purposes or for other business requirements.
 
+The Kubernetes\cite{K8s2017} is one of the popular container cluster management systems
+which enable easy deployment of the container clusters.
+By using the Kubernetes as a middleware, we can easily deploy a WEB service on different 
+cloud providers or on on-premise data centers, without adjusting the service to the environment.
+Therefore in the case when one wants to move a WEB service consisting of a container cluster 
+to the different side of the earth, he can start a container cluster in a new location and 
+route the traffice to that, then he can stop the old container cluster eventually.
+This is the typical senario of WEB service migration.
 
-The Kubernetes\cite{K8s2017} container cluster system is one of the prominent candidates
-which enable easy migration of the container clusters.
-However the migrations are only easy on limited cloud providers including GCP and AWS, because
-the Kubernetes is heavily dependent on external load balancers which is set up by cloud providers on the fly through its API.  
-
-The external load balancer set up by the cloud providers will distribute the incoming traffic to every node server.
-The traffic is forwarded again using iptables DNAT\cite{MartinA.Brown2017,Marmol2015} as load balancer with the round-robin manner. 
-
-This does not necessarily work for all cloud provider nor for on-premise data centers.
-Because most of them do not have load balancers which is supported by the Kubernetes.
-On such environments a static routing for inbound traffic are set up manually with ad hoc manner.
-
-This is far from automation or convenient.
+However, this senario is only known to work among major cloud providers including GCP, AWS and Azure.
+We find that the Kubernetes is heavily dependent on external load balancers 
+which is set up by cloud providers on the fly through its API. 
+The external load balancer will distribute the incoming traffic to every servers which hosts containers.
+The traffic is then distributed again to the actual containers using iptables DNAT\cite{MartinA.Brown2017,Marmol2015} 
+rules with the round-robin manner. 
+There are many load balancers which could not be set up by the Kubernetes, 
+due to the lack of support by the Kubernetes or due to the lack of the API which a program can utilise.
+This is especially true for bare metal load balancers which is used in on-premise data centers.
+On such environments a static routing for inbound traffic cloud be set up manually with ad hoc manner.
+This results in different environments,from a view point of a container cluster.
+The end result is that we will no longer be able to run an unmodified container cluster on different environments.
 Accordingly, migrating container clusters among those environments will always be a burden.
 
 In order to eliminate the dependency on external load balancer, 
-we propose a containerized software load balancer which is deploy-able as a part of container clusters.
-We will containerize ipvs\cite{Zhang2000} layer 4 load balancer using existing ingress framework of the Kubernetes cluster. 
+we propose a containerized software load balancer which is run by the Kubernetes as a part of container clusters.
+By doing this, we can deploy a WEB service on different environments without modification.
+This will ease the WEB service migration to the other side of the world. 
+We will containerize Linux kernel's ipvs\cite{Zhang2000} layer 4 load balancer using existing ingress\cite{K8sIngress2017} framework of the Kubernetes. 
 We also investigate the feasibility of such load balancer by comparing the performance 
-with iptables DNAT load balancer functionality and Nginx load balancer.
-
+with iptables DNAT load balancer functionality and Nginx layer 7 load balancer.
 Also discussed will be appropriate overlay network settings which enable such load balancers to work properly, 
 and techniques to derive the most performance out of such load balancers.
+
+The contribution of this paper are followings: 
+1) We propose a portable software load balancer 
+which is runnable on any cloud provider or on on-premise data centers, 
+as a part of container cluster.
+2) We discuss feasibility of such a load balancer by comparing the performance.
+3) We also discuss about usable overlay network and clarify importance of a technique 
+to draw the best performance from such load balancers.  
 
 The rest of the paper is organized as follows.
 The section \ref{Related Work} highlights related work specifically those deal with container cluster migration, 
@@ -50,14 +64,16 @@ which is followed by the conclusion in the section~\ref{Conclusions}.
 
 \section{Related Work}\label{Related Work}
 This section highlights related work especially those deal with container cluster migration, 
-software load balancer containerization or a load balancer related tools in the context of container. 
+software load balancer containerization or load balancer tools in the context of container. 
 
+\paragraph{\bf Container cluster migration:}
 Developers of the Kubernetes are trying to add federation\cite{K8sFederation2017} capability 
 where multiple Kubernetes clusters are deployed on multiple cloud providers or on-premise data centers 
 and are managed via federation apiserver server. However, how each of Kubernetes clusters is run on different type of cloud providers
 or in on-premise data centers, especially when the load balancers of such environments are not supported by the Kubernetes, 
 seems out of the scope of the project. 
-   
+
+\paragraph{\bf Software load balancer containerization:}
 As far as the containerization of a load balancers are concerned, there are following related works:
 Nginx-ingress\cite{Pleshakov2016,NginxInc2016} utilizes the ingress\cite{K8sIngress2017} capability of the Kubernetes, 
 and implements containerized Nginx proxy as a load balancer. The Nginx itself is famous as a high performance web server program,
@@ -66,7 +82,6 @@ URI based switching. However the flip side of these is that it is much slower th
 The upper bound of the performance of the Nginx as a load balancer will not be much better than 
 that as a single web server serving lightweight web pages. 
 Therefore it is meaningless to use the Nginx as a load balancer in such cases.
- 
 The kube-keepalived-vip\cite{Prashanth2016} project is trying to use the Linux kernel's load balancer capability, 
 called ipvs\cite{Zhang2000} by containerizing the keepalived\cite{ACassen2016} and ipvs. 
 The keepalived container is using the daemonsets\cite{K8sDaemonsets2017} framework of the Kubernetes. 
@@ -75,11 +90,11 @@ This work is very similar to our proposal in the sense that it uses keepalived a
 However it does not provide per container cluster load balancer which is portable among different cloud providers.   
 Our proposal is to provide a load balancer that is configurable and deploy-able at user's will,
  as a part of container cluster itself not as a port of the Kubernetes cluster infrastructure.  
-
 The swarm mode of the docker\cite{DockerCoreEngineering2016,DockerInc2017} also uses ipvs for internal load balancing,
 however it is also considered as built-in load balancer functionality of the docker, 
 and is different from our proposal.
 
+\paragraph{\bf Load balancer tools in the context of container:}
 There are several other projects where an effort to utilize ipvs in the context of container environment.
 The gorb\cite{Sibiryov2015} and the clusterf\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433} are daemons 
 which setups ipvs in the kernel inside docker container. They utilize information about running container stored in key-value storages
@@ -87,18 +102,9 @@ like the etcd\cite{CoreOSEtcd} and the consul\cite{HashiCorpConsul}.
 These has the similar functionality to a combination of keepalived and the Kubernetes ingress controller in our proposal.
 These may be usable in our environment in future, but that is beyond the scope of this paper.
 
-The contribution of this paper are followings: 
-1) We propose a portable software load balancer 
-which is runnable on any cloud provider or on on-premise data centers, 
-as a part of container cluster.
-2) We discuss feasibility of such a load balancer by comparing the performance.
-3) We also discuss about usable overlay network and clarify importance of a technique 
-to draw the best performance from such load balancers.  
-
-
 \section{Load balancers in Kubernetes cluster}\label{Load balancers in Kubernetes cluster}
 
-\subsection{Conventional Architecture}
+\subsection{Problems of Conventional Architecture}
 
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/K8sConventional}
@@ -119,7 +125,6 @@ When a service is created, the masters will send out request to cloud providers 
 to set up external load balancers.
 The proxy daemon on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
 which distributes the inbound traffic to the existing pods.
-
 The traffic from the internet will be distributed by the external load balancer to node servers evenly, 
 then it will be distributed again by the DNAT rules on the node serves to designated pods. 
 The returning packets will follow the exact same route as the incoming ones.
@@ -129,13 +134,16 @@ The problems of this architecture are the followings:
 There are many cloud providers where the API of load balancers is not supported by Kubernetes. 
 There are many load balancers which dose not even have APIs that is usable by Kubernetes, 
 especially for on-premise data centers.  
-In such cases, one could manually setup the routing table on a gateway to one of the node servers, 
-then the traffic will be distributed by the DNAT rules on the node to designated pods.
+In such cases, one could manually setup the routing table on the gateway so that the traffic will be routed to one of the node servers.
+Then the traffic will be distributed by the DNAT rules on the node to designated pods.
 However this is far from convenient.
 2) Distributing the traffic twice, firstly on the external load balancers and secondary on each node, 
 will complicate the route which a packet follows. 
 Imagine the situation, where the DNAT table on one of the node servers malfunctions.
 In such case, you will only observe occasional timeouts. It is very difficult to find out which node server malfunctions.   
+
+In order to address these problems we propose a containerized load balancer 
+which is deploy-able on any environment, even if there is no external load balancers.
 
 \subsection{Proposed Architecture}
 
