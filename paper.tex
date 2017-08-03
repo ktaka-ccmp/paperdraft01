@@ -85,14 +85,17 @@
 
 
 \begin{abstract}
-The linux containers have become very popular these days due to its lightweightness.
-Many WEB services are deployed as a cluster of the containers.
-In order to make these WEB services to be able to migrate to different cloud providers
-or on-premise data centers, we propose a containerized software load balancer for a Kuberenetes cluster system.
-We will implement so that linux kernel's ipvs load balancer can be run as a container.
-We also compare the performance of proposed load balancer with convetional iptables dnat based load balancer functionality.
-Throught the experiment, the choice of the overlay network will be discussed.
-Also the importance of distributing packet processings to multiple cores will be exemplified.
+The Linux containers have become very popular these days due to its lightweight nature.
+Many WEB services are deployed as a cluster of the containers. 
+The Kubernetes is a popular container management system, which enables a user to deploy such WEB services easily.
+However, since the Kubernetes relies on cloud provider's load balancer, 
+it was difficult to be used in environments where there was no supported load balancers.
+This was the case for on-premise data centers, or for cloud providers except the major ones.
+In this paper, we proposed a containerized software load balancer which could be run by the Kubernetes even in these environments.
+We implemented the load balancer so that linux kernel's ipvs could be used inside a container.
+Then we compared the performance of the proposed load balancer with existing iptables DNAT and the Nginx.
+Through the experiment, the choice of the overlay network has been discussed.
+Also the importance of distributing packet processings to multiple cores have been exemplified.
 \end{abstract}
 
 %
