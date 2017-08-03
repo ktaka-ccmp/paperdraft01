@@ -30,8 +30,8 @@ There are many load balancers which could not be set up by the Kubernetes,
 due to the lack of support by the Kubernetes or due to the lack of the API which a program can utilize.
 This is especially true for bare metal load balancers which is used in on-premise data centers.
 On such environments a static routing for inbound traffic could be set up manually with ad hoc manner.
-This results in different environments,from a view point of a container cluster.
-The end result is that we will no longer be able to run an unmodified container cluster on different environments.
+This results in different environments, from a view point of a container cluster.
+We have to always adjust a container cluster to run on different environments.
 Thus, migrating container clusters among those environments will always be a burden.
 
 In order to eliminate the dependency on external load balancer, 
@@ -99,7 +99,7 @@ and is different from our proposal.
 \paragraph{\bf Load balancer tools in the context of container:}
 There are several other projects where an effort to utilize ipvs in the context of container environment.
 The gorb\cite{Sibiryov2015} and the clusterf\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433} are daemons 
-which setups ipvs in the kernel inside docker container. They utilize information about running container stored in key-value storages
+which setups ipvs rules in the kernel inside docker container. They utilize information about running container stored in key-value storages
 like the etcd\cite{CoreOSEtcd} and the consul\cite{HashiCorpConsul}. 
 These has the similar functionality to a combination of keepalived and the Kubernetes ingress controller in our proposal.
 These may be usable in our environment in the future, but that is beyond the scope of this paper.
@@ -203,19 +203,19 @@ These are the main idea of our proposal, the following section explains the impl
 
 Figure~\ref{fig:ipvs-ingress-schem} show the schematic diagram of a container that functions as a load balancer.
 Inside the container, two daemons, controller and keepalived are run.
-The keepalived is a program which modifies Linux kernels ipvs rules depending on the configuration file, ipvs.conf.
+The keepalived is a program which manages Linux kernel's ipvs rules depending on the configuration file, ipvs.conf.
 The keepalived is also capable of health-checking the liveliness of real-server, 
 which is a combination of IP address and port number of the target pods. 
 If the health-check to a real server fails, the keepalived will remove that real server from the ipvs rules.
 
 The controller monitors information of running pods of a service in the Kubernetes cluster by consulting the apiserver on the master server.
 Whenever pods are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
-Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules.  
+Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules accordingly.  
 The actual controller\cite{ktaka_ccmp_2017_826894} has been implemented using ingress controller\cite{K8sIngress2017} framework of the Kubernetes.
-By importing existing Golang package, \enquote{k8s.io/ingress/core/pkg/ingress},
-we only needed 120 lines of code.  
+By importing existing Golang package, \enquote{k8s.io/ingress /core/pkg/ingress},
+we needed only 120 lines of code.  
 
-In this way, the ipvs's balancing rules inside Linux kernel are maintained so that it could distribute the incoming traffic only to the living pods.
+In this way, the ipvs's balancing rules inside Linux kernel are maintained so that it can distribute the incoming traffic only to the living pods.
 
 In order to let the kernel to load required kernel modules inside a container, 
 we needed to add the CAP\_SYS\_MODULE capability to the container, 
@@ -228,7 +228,6 @@ that is usually dropped inside docker containers.
 \begin{figure}
 \begin{minipage}{0.7\columnwidth}
 \begin{verbatim}
-
 virtual_server fwmark 1 {
   delay_loop 5
   lb_algo lc
@@ -249,7 +248,6 @@ virtual_server fwmark 1 {
     }
   }
 }
-
 \end{verbatim}
 \end{minipage}
 \caption{An example of ipvs.conf}
@@ -260,7 +258,6 @@ virtual_server fwmark 1 {
 \begin{minipage}{\columnwidth}
 \small
 \begin{verbatim}
-
 # kubectl exec -it ipvs-controller-4117154712-kv633 -- ipvsadm -L
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
@@ -268,7 +265,6 @@ Prot LocalAddress:Port Scheduler Flags
 FWM  1 lc
   -> 172.16.21.2:80      Masq    1      0          0         
   -> 172.16.80.2:80      Masq    1      0          0
-
 \end{verbatim}
 \end{minipage}
 \caption{An example of ipvs balancing rules}
@@ -282,9 +278,10 @@ to the {\tt 172.16.21.2:80} and {\tt 172.16.80.2:80}
 using the masquerade mode(Masq)\cite{Zhang2000} and 
 the least connection(lc)\cite{Zhang2000} balancing algorithm.   
 
+
 \section{Performance Measurement}\label{Performance Measurement}
 
-We discuss the feasibility of the proposed load balancer by comparing the performance with existing iptables and Nginx based load balancer. 
+We discuss the feasibility of the proposed load balancer by comparing the performance with existing iptables DNAT and Nginx based load balancer. 
 We carried out performance measurement of the proposed load balancer using benchmark program called, wrk\cite{Glozer2016}.
 We also measured performance of iptables's DNAT load balancing functionality and Nginx layer 7 load balancer for comparison.
 
@@ -295,9 +292,10 @@ We compared each of the three backends\cite{CoreOSFlannelBackend},
 
 It is known that distributing the handling of interrupts from the NIC 
 and the following IP protocol processing, among multiple cores are important.
-
 In order to derive the best performance from a load balancer, 
 we also investigated how this would affect the performance of load balancers.
+
+The following subsections explain these further in detail. 
 
 \subsection{Benchmark method}
 
@@ -310,23 +308,21 @@ we also investigated how this would affect the performance of load balancers.
 Using the wrk, we measured performance of the load balancers.
 Figure~\ref{fig:benchmark-schem} shows schematic diagram of the experimental setups.
 Having deployed pods running Nginx web servers which returns IP address of the pod itself,
-we set up the ipvs, iptables and Nginx load balancers on one of the node servers. 
+we set up the ipvs, iptables DNAT and Nginx load balancers on one of the node servers. 
 
 The HTTP GET requests are sent out by the wrk on the client machine toward the node servers.
 The destination IP address and port number is chosen 
 depending on the type of the load balancer on which the measurement is performed.
 The load balancer on the node server then distribute the requests to the pods.
 Each pod will return HTTP responses to the load balancer and the load balancer will then return the response to the client.
-
 The number of responses received by the wrk on the client is counted, 
 then the performance in terms of the request/sec is obtained. 
 
 Figure~\ref{fig:benchmark example} shows an example of the command-line for the wrk and the corresponding output.
 The command-line in Figure~\ref{fig:benchmark example} will generate 40 threads of wrk program 
 and lets those threads send out in total of 800 concurrent HTTP requests during 30 seconds.
-
 The example output shows information including per thread statistics, error counts, Request/sec and Transfer/sec[MByte/sec].
-We considered the \enquote{Request/sec} to be the performance, and compared for several conditions.
+We considered the \enquote{Request/sec} to be the performance, and compared them among several conditions.
 
 Figure~\ref{fig:Hardware and software configuration} shows hardware and software configuration used in our experiments.
 We used Nginx as the target HTTP server which returns own IP address as HTTP content. 
@@ -340,7 +336,6 @@ Since we used smaller HTTP responses, we could perform the severer benchmark aga
 \begin{minipage}{\columnwidth}
 \small
 \begin{Verbatim}[commandchars=\\\{\}]
-
 \underline{\textbf{Command line:}}
  wrk -c800 -t40 -d30s http://172.16.72.2:8888/
 -c: concurrency, -t: # of thread, -d: duration
@@ -355,7 +350,6 @@ Since we used smaller HTTP responses, we could perform the severer benchmark aga
   Socket errors: connect 0, read 0, write 0, timeout 1
 Requests/sec: 164717.63
 Transfer/sec:     38.86MB
-
 \end{Verbatim}
 \end{minipage}
 \caption{An example output of benchmark by wrk}
@@ -366,7 +360,6 @@ Transfer/sec:     38.86MB
 \begin{minipage}{0.9\columnwidth}
 \small
 \begin{Verbatim}[commandchars=\\\{\}]
-
 \underline{\textbf{Physical Machine Specification:}}
   CPU: Intel(R) Xeon(R) CPU E5-2450 0 @ 2.10GHz
   # of Physical Cores: 8
@@ -392,7 +385,6 @@ Transfer/sec:     38.86MB
 
 \underline{\textbf{Worker Pod Software version:}}
   nginx : nginx/1.13.0 
-
 \end{Verbatim}
 \end{minipage}
 \caption{Hardware and software configuration}
@@ -410,7 +402,7 @@ In the host-gw mode, the flanneld on a node server simply set up the routing tab
 based on IP address assignment information of the overlay network which is stored in etcd. 
 When a pod on a node sends out a IP packet to another pods on a different node server, 
 the former node servers will consult the routing table and learn that that IP packet should be sent out to the latter node.
-Then the former node will form Ethernet frames having destination MAC address of the latter node without changing the IP header.
+Then the former node will form Ethernet frames having destination MAC address of the latter node without changing the IP header and send out them.
 
 In the case of the vxlan mode, the flanneld will create Linux kernel's vxlan device, flannel.1. 
 The flanneld also setup the routing table appropriately based on the information stored in the etcd.
@@ -429,7 +421,6 @@ The encapsulation is done for IP packets.
 Figure~\ref{fig:flannel-packet-diagram} shows schematic diagrams of frame format for the three backend of 
 the flannel overlay network.
 Also shown are the MTU sizes of each operation mode, assuming the MTU without encapsulation is 1500byte.
-
 Since packets are not encapsulated in the host-gw mode, the MTU remains 1500bytes.
 Additional 50bytes of header is used in vxlan mode, resulting in MTU of 1450bytes.
 In the case of udp mode only 28bytes of header is used for encapsulation, which results in MTU of 1472bytes.
@@ -450,17 +441,6 @@ Since it simply sends out a packet without encapsulation,
 if there is a gateway between node servers, 
 the gateway will drop the packet because it does not know where to send the packet to.
 
-This is known to happen in the case of cloud providers.  
-We have investigated which backend of the flannel is usable on AWS, GCP and on-premise data centers.
-The results are summarized in Table~\ref{tab:Viable flannel backends}
-
-In the case of GCP, an IP address of {\tt /32} is assigned to every VM host.
-Every communication between VMs goes through GCP's gateway.
-As for AWS, if VMs are within a same subnet, they communicate directly.
-However a communication is via AWS's gateway if the VMs reside in different subnets.
-The gateways do not have knowledge of the flannel overlay network, 
-thus prohibit the use of the host-gw mode of the flannel on those environment.  
-
 \begin{table}
   \begin{tabular}{lccc}
     \toprule
@@ -475,25 +455,33 @@ thus prohibit the use of the host-gw mode of the flannel on those environment.
   \label{tab:Viable flannel backends}
 \end{table}
 
-In the experiment, we compared the performance of load balancers when different backend of the flannel is used. 
+This is known to happen in the case of cloud providers.  
+We have investigated which backend of the flannel is usable on AWS, GCP and on-premise data centers.
+The results are summarized in Table~\ref{tab:Viable flannel backends}
+%
+In the case of GCP, an IP address of {\tt /32} is assigned to every VM host.
+Every communication between VMs goes through GCP's gateway.
+As for AWS, if VMs are within a same subnet, they communicate directly.
+However a communication is via AWS's gateway if the VMs reside in different subnets.
+The gateways do not have knowledge of the flannel overlay network, 
+thus prohibit the use of the host-gw mode of the flannel on those environment.  
 
+In the experiment, we compared the performance of load balancers when different backend of the flannel is used. 
 
 \subsection{Distributed packet handling}
 
 Recently the performance of a CPU is improved significantly due to the development of multi-core CPUs.
 One of the top of the line server processors from Intel even has up to 20 cores in a single CPU.
-In order to enjoyed the benefit of such many cores, 
-it is know to be necessary to distribute the handling of interrupts from the NIC and the IP protocol processing
+In order to enjoy the benefit of such many cores, 
+it is known to be necessary to distribute the handling of interrupts from the NIC and the IP protocol processing
 to the available physical cores.
 The Receive Side Scaling (rss)\cite{TomHerbert} is the technology 
 which distributes the handling of the interrupt from the NIC queues to multiple CPU cores.
 Then the Receive Packet Steering (rps)\cite{TomHerbert} will distributes the IP protocol processing 
 to multiple CPU cores by issuing inter core software interrupt.
 
-It is important to know the impact of these technologies, 
-in order to understand in what conditions the maximum performance could be achieved.
-We want to compare the performance of different load balancers using best possible conditions.
-We will compare how the performance of a load balancer changes depending on the rss and rps settings.
+We expected that the performance of a load balancer was affected  by these technology.
+Therefore we compared how the performance of a load balancer changes depending on the rss and rps settings.
 The following shows how the rss and rps are enabled and disabled in our experiment. 
 
 The Network Interface Card (NIC) used in the experiment is Broadcom BCM5720, which has 4 rx-queues and 1 tx-queue.
@@ -522,7 +510,7 @@ Each receive queue has a separate IRQ associated with it. The NIC triggers
 this to notify a CPU when new packets arrive on the given queue.
 The notified CPU will handle the interrupt and then perform the protocol processing. 
 According to the \cite{TomHerbert}, which CPU core is allowed to be notified is controlled by setting 
-hexadecimal value corresponding bit maps indicating allowed CPU cores in \enquote{/proc/irq/\$irq\_number /smp\_affinity}.
+hexadecimal value corresponding ot the bit maps indicating allowed CPU cores in \enquote{/proc/irq/\$irq\_number /smp\_affinity}.
 
 For example, in order to route the interrupt for eth0-rx-1 to CPU0, 
 we should set \enquote{/proc/irq/82/smp\_affinity} 
@@ -531,7 +519,7 @@ And in order to route the interrupt for eth0-rx-2 to CPU1, we
 should set \enquote{/proc/irq/83/smp\_affinity} 
 to binary number {\tt 0010}, which is 2 in hexadecimal value.
 
-So, we can distribute interrupts from 4 rx-queues to CPU0, CPU1, CPU2 and CPU3, by the following settings: 
+We can distribute interrupts from 4 rx-queues to CPU0, CPU1, CPU2 and CPU3, by the following settings: 
 
 \begin{center}
 \begin{minipage}{0.8\columnwidth}
@@ -585,7 +573,10 @@ echo fefe > /sys/class/net/eth0/queues/rx-3/rps_cpus
 \end{minipage}
 \end{center}
 
+The hexadecimal value \enquote{fefe} represented as \enquote{1111 1110 1111 1110} in binary, 
+thus this setting will allow distributing protocol processing to all of the CPUs except for CPU0 and CPU8.
 In this paper, we will refer this setting as {\tt rps = on}.
+
 On the other hand the {\tt rps = off} means the following settings:
 
 \begin{center}
@@ -602,32 +593,33 @@ echo 0 > /sys/class/net/eth0/queues/rx-3/rps_cpus
 \end{minipage}
 \end{center}
 
-The hexadecimal value \enquote{fefe} represented as \enquote{1111 1110 1111 1110} in binary, 
-thus this setting will allow distributing protocol processing to all of the CPUs except for CPU0 and CPU8.
+In this case no CPU is allowed for rps. 
+The IP protocol processing is perfomed on the CPUs the initial hardware interrupt is recieved.
 
-The rps is effective when the NIC does not have multiple receive queues or when the number of the queues is 
+The rps is especially effective when the NIC does not have multiple receive queues or when the number of the queues is 
 much smaller than the number of CPU cores, as in the case of our experiment.
+
 
 \section{Result and Discussion}\label{Result and Discussion}
 
-\begin{figure*}
-\includegraphics[width=\textwidth]{Figs/ipvs_3figs}
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/ipvs_3figs}
 \caption{ipvs results}
 \label{fig:ipvs3figs}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}
-\includegraphics[width=\textwidth]{Figs/iptables_3figs}
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/iptables_3figs}
 \caption{iptables results}
 \label{fig:iptabls3figs}
-\end{figure*}
-
+\end{figure}
 
 \begin{figure}
 \includegraphics[width=\columnwidth]{Figs/ipvs-iptables-nginx_2figs}
 \caption{ipvs and iptables comparison}
 \label{fig:ipvs-iptables-nginx_2figs}
 \end{figure}
+
 
 Figure~\ref{fig:ipvs3figs} shows benchmark results for ipvs load balancer. 
 All of them shows the performance in terms of Request/sec as a function of the number of nginx web server pods.
@@ -639,11 +631,9 @@ The rss and rps settings compared are the followings:
 \begin{center}
 \begin{minipage}{0.8\columnwidth}
 \begin{verbatim}
-
 (rss, rps) = (off, off)
            = (on , off)
            = (off, on )
-
 \end{verbatim}
 \end{minipage}
 \end{center}
@@ -662,15 +652,14 @@ If we compare the results for the cases when \enquote{(rss, rps) = (on, off)} an
 the latter is better than the former.
 It is understandable, since in the case of \enquote{rps = on}, 8 physical cores are used whereas 
 in the case of \enquote{rss = on} only 4 cores are used on the hardware used in our experiment.
-
 The performance bottleneck of the case when \enquote{rss = on} is considered 
 to be due to the fact that the packet processing is done on only 4 CPU cores.
 What limit the performance for the case when \enquote{rps = on} is not clear yet.
 
 If we compare the performance among the type of the flannel backend, 
-the host-gw where no encapsulation is conducted has the highest performance,
-followed by the vxlan where the Linux kernel encapsulate the Ethernet frame.
-The udp where flanneld itself encapsulate the IP packet has the significantly lower performances.
+the host-gw mode where no encapsulation is conducted has the highest performance,
+followed by the vxlan mode where the Linux kernel encapsulate the Ethernet frame.
+The udp mode where flanneld itself encapsulate the IP packet has the significantly lower performances.
 
 Figure~\ref{fig:iptabls3figs} show the benchmark results for the load balancer 
 functionality of the iptables DNAT. 
@@ -681,7 +670,6 @@ If we compare the results for different packet handling settings, the highest pe
 obtained for the case when \enquote{(rss, rps) = (off on)}, followed by the case when \enquote{(rss, rps) = (on, off)}. 
 The performance result for the case when \enquote{(rss, rps) = (off, off)} resulted in the 
 poorest performance as was the case for the ipvs.
-
 As for the type of the flannel backend, the host-gw has the highest performance followed 
 bye the vxlan. The udp backend totally degrade the performance.
 
@@ -690,7 +678,6 @@ among the load balancer type, namely, ipvs, iptables DNAT and nginx
 with the condition of \enquote{(rss, rps) = (off on)}.
 The proposed ipvs load balancer has almost equivalent performance as the existing iptables 
 DNAT based load balancing functionality. 
-
 The nginx based load balancer significantly under performs compared with two other methods.
 For the nginx load balancer the performance never increases even though the number of the 
 nginx web servers pod is increased.
