@@ -510,7 +510,7 @@ Each receive queue has a separate IRQ associated with it. The NIC triggers
 this to notify a CPU when new packets arrive on the given queue.
 The notified CPU will handle the interrupt and then perform the protocol processing. 
 According to the \cite{TomHerbert}, which CPU core is allowed to be notified is controlled by setting 
-hexadecimal value corresponding ot the bit maps indicating allowed CPU cores in \enquote{/proc/irq/\$irq\_number /smp\_affinity}.
+hexadecimal value corresponding to the bit maps indicating allowed CPU cores in \enquote{/proc/irq/\$irq\_number /smp\_affinity}.
 
 For example, in order to route the interrupt for eth0-rx-1 to CPU0, 
 we should set \enquote{/proc/irq/82/smp\_affinity} 
