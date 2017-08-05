@@ -1,12 +1,7 @@
 #!/bin/bash
 
-branch=kt
-if git show-branch $branch ; then
-	git checkout $branch
-else
-	git checkout -b $branch
-	git push --set-upstream origin
-fi
+branch=wip
+git checkout $branch
 
 ##Commit commands for backup
 git add bibliography.bib body.tex paper.tex gitcommitwip.sh
