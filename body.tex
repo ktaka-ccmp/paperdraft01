@@ -10,29 +10,39 @@ This means a container cluster can provide the repeatable execution environment.
 For WEB services, the Linux containers are attractive because of the same reasons. 
 Furthermore, it is expected that WEB services consisting of container cluster are 
 capable of being easily migrated for Disaster Recovery purposes or for other business requirements.
+The migration in this context means that when one wants to move a WEB service consisting of a container cluster 
+to the different side of the earth, he starts a container cluster in a new location and 
+routes the traffic to there, then stops the old container cluster eventually.
+This is the typical scenario of WEB service migration.
 
 The Kubernetes\cite{K8s2017} is one of the popular container cluster management systems
 which enable easy deployment of the container clusters.
-By using the Kubernetes as a middle-ware, we can easily deploy a WEB service on different 
-cloud providers or on on-premise data centers, without adjusting the container cluster to the environment.
-Therefore in the case when one wants to move a WEB service consisting of a container cluster 
-to the different side of the earth, he can start a container cluster in a new location and 
-route the traffic to there, then he can stop the old container cluster eventually.
-This is the typical scenario of WEB service migration.
+By using the Kubernetes as a middle-ware, we expect to be able to provide a uniform environment by hiding differences the different infrastructures have.
+If so, we can deploy a WEB service on the different cloud providers or the on-premise data centers, without adjusting them to environment every time.
+The Kubernetes becomes suitable infrastructure for the WEB service migration.
 
-However, this scenario is only known to work among major cloud providers including GCP, AWS and Azure.
+However, this scenario will not work if the Kubernetes fails to provide a uniform environment. 
 We find that the Kubernetes is heavily dependent on external load balancers 
 which is set up by cloud providers on the fly through its API. 
 The external load balancer will distribute the incoming traffic to every servers which hosts containers.
 The traffic is then distributed again to the actual containers using iptables DNAT\cite{MartinA.Brown2017,Marmol2015} 
 rules with the round-robin manner. 
+This mechanism is only known to work on major cloud providers including GCP, AWS and Azure.
 There are many load balancers which could not be set up by the Kubernetes, 
 due to the lack of support by the Kubernetes or due to the lack of the API which a program can utilize.
 This is especially true for bare metal load balancers which is used in on-premise data centers.
 On such environments a static routing for inbound traffic could be set up manually with ad hoc manner.
 This results in different environments, from a view point of a container cluster.
 We have to always adjust a container cluster to run on different environments.
-Thus, migrating container clusters among those environments will always be a burden.
+Thus, migrating container clusters among those environments would always be a burden, even if we used the Kubernetes as our container infrastructure.
+
+There are 2 possible solution to make the Kubernetes be able to provide uniform environment even 
+if it is used in variety of cloud providers or in on-premise data centers.
+The first is to make all of the existing load balancers supported by the Kubernetes 
+or replace the existing load balancers with the ones supported by the Kubernetes.
+The second is to make the Kubernetes independent of the external load balancers.
+In this paper we took the second approach as it seemed easier to realize. 
+We won't exclude the possibility of the first approach, but that should be discussed elsewhere.
 
 In order to eliminate the dependency on external load balancer, 
 we propose a containerized software load balancer which is run by the Kubernetes as a part of container clusters.
@@ -123,9 +133,9 @@ On the node servers, the kubelet daemon will run pods, depending the PodSpec inf
 A pod is a group of containers which share the net name space and cgroups, 
 and is the basic execution unit in the Kubernetes cluster.
 
-When a service is created, the masters will send out request to cloud providers API endpoints, 
-to set up external load balancers.
-The proxy daemon on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
+When a service is created, the master will schedule pods and kubelets on the nodes will create them accodingly.
+At the sametime, The masters will send out request to cloud providers API endpoints to set up external load balancers.
+The proxy daemons on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
 which distributes the inbound traffic to the existing pods.
 The traffic from the internet will be distributed by the external load balancer to node servers evenly, 
 then it will be distributed again by the DNAT rules on the node serves to designated pods. 
@@ -134,7 +144,7 @@ The returning packets will follow the exact same route as the incoming ones.
 The problems of this architecture are the followings: 
 1) Having external load balancers whose APIs are supported by the Kubernetes daemons is the prerequisite. 
 There are many cloud providers where the API of load balancers is not supported by Kubernetes. 
-There are many load balancers which dose not even have APIs that is usable by Kubernetes, 
+There are also many load balancers which dose not even have APIs that is usable by Kubernetes, 
 especially bare metal load balancers for on-premise data centers.  
 In such cases, one could manually setup the routing table on the gateway so that the traffic will be routed to one of the node servers.
 Then the traffic will be distributed by the DNAT rules on the node to designated pods.
@@ -142,7 +152,7 @@ However this is far from convenient.
 2) Distributing the traffic twice, firstly on the external load balancers and secondary on each node, 
 will complicate the route which a packet follows. 
 Imagine the situation, where the DNAT table on one of the node servers malfunctions.
-In such case, one will only observe occasional timeouts. It is very difficult to find out which node server malfunctions.   
+In such case, one will only observe occasional timeouts, which is not enough to find out the malfunctioning node.   
 
 So in short, 1) the Kubernetes can be used only in limited environments where the external load balancers are supported, 
 2) the route incoming traffic follows are very complex.
@@ -161,11 +171,11 @@ which is deploy-able on any environment, even if there is no external load balan
 Figure~\ref{fig:K8sProposed} shows the proposed architecture of the Kubernetes cluster, 
 which has following characteristics:
 1) Each load balancer itself is run as a pod by the Kubernetes. 
-2) Configuration of the load balancers are dynamically updated depending on the information of running pods.
+2) The configuration of the load balancers are dynamically updated depending on the information about running pods.
 %%3) There exist multiple load balancers for redundancy. 
 
 By having these characteristics, we can resolve the problems of conventional architecture.
-Since load balancer itself is containerized, it can be run on any environment 
+Since the load balancer itself is containerized, it can be run on any environment 
 where there is no supported external load balancers including on-premise data centers.
 And because it distribute traffic only once on the load balancer, the incoming traffic follows simple route. 
 It becomes relatively easy to find malfunctions.
@@ -177,18 +187,19 @@ The Linux kernel has been shipped with ipvs, which is the layer 4 load balancer 
 since the release of kernel 2.6.0 in 2003. 
 The ipvs has the capability of distributing incoming TCP traffic to many real serves where actual server programs reside.
 One typical example is distribute the HTTP traffic destined for a virtual server with single IP, 
-to many of it's subordinate real servers where HTTP server program like Apache HTTP server or nginx actually runs.
+to many of it's subordinate real servers where HTTP server program like the Apache HTTP server or the nginx actually runs.
 In this way we can balance the load of a single server to its subordinate real servers.
 
 The keepalived is a management program which performs the health checking of the real servers 
 and manage the ipvs balancing rules in the kernel accordingly.
-It is often used with the ipvs to provide the ease of use.
-The keepalived also provides VRRP\cite{hinden2004virtual} redundancy, but that is beyond the scope of this paper.
+Because it provides the ease of use, it is often used with the ipvs.
+The keepalived also provides VRRP\cite{hinden2004virtual} redundancy.
+We can utilize it, but that is beyond the scope of this paper.
 
 The ingress controller is a daemon which periodically monitors the pod information on the master, 
 and does some actions upon change of those information.
 The Kubernetes provides the framework as a Golang package to implement such controller. 
-We have developed a controller program which will feed the pod state change to the keepalived 
+We have implemented a controller program which will feed the pod state change to the keepalived 
 using this framework. 
 
 These are the main idea of our proposal, the following section explains the implementation in detail.
@@ -202,13 +213,13 @@ These are the main idea of our proposal, the following section explains the impl
 \end{figure}
 
 Figure~\ref{fig:ipvs-ingress-schem} show the schematic diagram of a container that functions as a load balancer.
-Inside the container, two daemons, controller and keepalived are run.
+Inside the container on a node, two daemons, controller and keepalived are run.
 The keepalived is a program which manages Linux kernel's ipvs rules depending on the configuration file, ipvs.conf.
 The keepalived is also capable of health-checking the liveliness of real-server, 
 which is a combination of IP address and port number of the target pods. 
 If the health-check to a real server fails, the keepalived will remove that real server from the ipvs rules.
 
-The controller monitors information of running pods of a service in the Kubernetes cluster by consulting the apiserver on the master server.
+The controller monitors information of running pods of a service in the Kubernetes cluster by consulting the master server.
 Whenever pods are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
 Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules accordingly.  
 The actual controller\cite{ktaka_ccmp_2017_826894} has been implemented using ingress controller\cite{K8sIngress2017} framework of the Kubernetes.
@@ -594,7 +605,7 @@ echo 0 > /sys/class/net/eth0/queues/rx-3/rps_cpus
 \end{center}
 
 In this case no CPU is allowed for rps. 
-The IP protocol processing is perfomed on the CPUs the initial hardware interrupt is recieved.
+The IP protocol processing is performed on the CPUs the initial hardware interrupt is received.
 
 The rps is especially effective when the NIC does not have multiple receive queues or when the number of the queues is 
 much smaller than the number of CPU cores, as in the case of our experiment.
