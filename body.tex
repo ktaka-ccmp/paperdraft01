@@ -344,6 +344,8 @@ which is relatively severe condition for a load balancer.
 If we chose the size of the HTTP response so that most of the IP packet result in MTU,
 the benchmark results would be limited by the bandwidth of the Ethernet.
 Since we used smaller HTTP responses, we could perform the severer benchmark against load balancers than otherwise.
+Each of the hardwares we used had a network card(NIC) with 4 rx-queues.
+It had 8 physical CPU cores, which will become 16 logical core when the Hyper Threading is enabled.
 
 \begin{figure}
 \begin{minipage}{\columnwidth}
@@ -411,7 +413,7 @@ When building a Kubernetes cluster, one has a choice in usable overlay networks.
 We used the flannel to build the Kubernetes cluster used in our experiment. 
 The flannel has 3 types of backend {\it i.e.} operating mode, called host-gw, vxlan and udp\cite{CoreOSFlannelBackend}.
 
-In the host-gw mode, the flanneld on a node server simply set up the routing table 
+In the host-gw mode, the flanneld daemon program on a node server simply set up the routing table 
 based on IP address assignment information of the overlay network which is stored in etcd. 
 When a pod on a node sends out a IP packet to another pods on a different node server, 
 the former node servers will consult the routing table and learn that that IP packet should be sent out to the latter node.
@@ -445,11 +447,13 @@ In the case of udp mode only 28bytes of header is used for encapsulation, which 
 \label{fig:flannel-packet-diagram}
 \end{figure}
 
-Performance of the load balancers are expected to be influenced by the overhead of encapsulation processing.
+Since each of the three backend mode of the flannel uses different mechanism to send out packets to pods on different node servers, 
+performance of the load balancers are expected to be influenced by the overhead of encapsulation processing.
 We assumed the host-gw mode, where there is no overhead due to encapsulation, will result in the best performances.
 That was the case as shown in Section~\ref{Result and Discussion}.
-However, this mode has a significant drawback.
+In the experiment, we compared the performance of load balancers when different backend mode of the flannel is used. 
 
+There is one issue to mention about the gw-mode of the flannel.
 Since it simply sends out a packet without encapsulation, 
 if there is a gateway between node servers, 
 the gateway will drop the packet because it does not know where to send the packet to.
@@ -479,12 +483,11 @@ However a communication is via AWS's gateway if the VMs reside in different subn
 The gateways do not have knowledge of the flannel overlay network, 
 thus prohibit the use of the host-gw mode of the flannel on those environment.  
 
-In the experiment, we compared the performance of load balancers when different backend of the flannel is used. 
 
 \subsection{Distributed packet handling}
 
 Recently the performance of a CPU is improved significantly due to the development of multi-core CPUs.
-One of the top of the line server processors from Intel even has up to 20 cores in a single CPU.
+One of the top of the line server processors from Intel even has up to 28 cores in a single CPU.
 In order to enjoy the benefit of such many cores, 
 it is known to be necessary to distribute the handling of interrupts from the NIC and the IP protocol processing
 to the available physical cores.
@@ -610,8 +613,9 @@ In this case no CPU is allowed for rps.
 The IP protocol processing is performed on the CPUs the initial hardware interrupt is received.
 
 The rps is especially effective when the NIC does not have multiple receive queues or when the number of the queues is 
-much smaller than the number of CPU cores, as in the case of our experiment.
-
+much smaller than the number of CPU cores. 
+That was the case of our experiment, where we had a NIC with only 4 rx-queues, 
+while there was a CPU with 8 physical cores.
 
 \section{Result and Discussion}\label{Result and Discussion}
 
@@ -709,11 +713,12 @@ In order to discuss the feasibility of such a load balancer, we built
 Kubernetes cluster system, and carried out performance measurement.
 The experimental result indicated that the proposed ipvs based load balancer
 had almost similar performance as the existing iptables DNAT based load balancer functionality.
-We have also learned that only the vxlan and the udp backend operation modes can be used 
-in the cloud environment and that the udp backend significantly under perform the vxlan backend.
-
-Further more we also learned that the distribution of packet processing among multiple CPUs is very important
-when we need to draw a maximum performance from load balancers.
+We have also clarified that the choice of the overlay network is very important to draw 
+the best performance from the load balancers.
+We could achieve the best performance without encapsulation, however it may not work on cloud providers.
+The vxlan mode of the flannel out performed the udp mode.
+Further more it was also clarified that the distribution of packet processing among multiple CPU cores is very important
+draw the best performance from load balancers.
 
 
 %\end{document}  % This is where a 'short' article might terminate
