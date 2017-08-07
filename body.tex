@@ -133,8 +133,8 @@ On the node servers, the kubelet daemon will run pods, depending the PodSpec inf
 A pod is a group of containers which share the net name space and cgroups, 
 and is the basic execution unit in the Kubernetes cluster.
 
-When a service is created, the master will schedule pods and kubelets on the nodes will create them accodingly.
-At the sametime, The masters will send out request to cloud providers API endpoints to set up external load balancers.
+When a service is created, the master will schedule pods and kubelets on the nodes will create them accordingly.
+At the same time, The masters will send out request to cloud providers API endpoints to set up external load balancers.
 The proxy daemons on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
 which distributes the inbound traffic to the existing pods.
 The traffic from the internet will be distributed by the external load balancer to node servers evenly, 
@@ -305,7 +305,7 @@ We compared each of the three backends\cite{CoreOSFlannelBackend},
 
 It is known that distributing the handling of interrupts from the NIC 
 and the following IP protocol processing, among multiple cores will improve the 
-performance of a linux based network appliances including load balancers.
+performance of a Linux based network appliances including load balancers.
 We also investigated how this would affect the performance of load balancers.
 
 The following subsections explain these further in detail. 
