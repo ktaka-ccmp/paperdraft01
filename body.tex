@@ -73,7 +73,9 @@ software load balancer containerization or load balancer tools in the context of
 \paragraph{\bf Container cluster migration:}
 
 Developers of the Kubernetes are trying to add federation\cite{K8sFederation2017} capability 
-where multiple Kubernetes clusters are deployed on multiple cloud providers or on-premise data centers 
+where multiple Kubernetes clusters\footnote{The {\em Kubernetes cluster} refers to a server cluster 
+controlled by the Kubernetes container management system, in this paper.} 
+are deployed on multiple cloud providers or on-premise data centers 
 and are managed via the federation apiserver server. However, how each of Kubernetes clusters is run on different type of cloud providers
 or in on-premise data centers, especially when the load balancers of such environments are not supported by the Kubernetes, 
 seems out of the scope of that project. 
@@ -121,7 +123,7 @@ the information about running container through the standard API.
 
 The Kubernetes container management system has an issue when it is used in outside of recommended cloud providers e.g. GCP or AWS.
 Figure~\ref{fig:K8sConventional} shows an exemplified Kubernetes cluster.
-The Kubernetes cluster typically consists of a master and nodes.
+The Kubernetes cluster typically consists of a master and nodes. They can be physical servers or VMs.
 On the master daemons that control the Kubernetes cluster are typically deployed. 
 These daemons include, apiserver, scheduler, controller-manager and etcd. 
 On the nodes, the kubelet daemon will run {\it pods}, depending the PodSpec information obtained from the apiserver on the master.
@@ -169,20 +171,20 @@ The proposed load balancer has following characteristics:
 The proposed load balancer solved the the problems of conventional architecture as follows:
 The load balancer can run on any environment, even on the environment without external load balancers supported by the Kubernetes including on-premise data centers, since the load balancer itself is containerized. The incoming traffic is directly distributed to destination {\em pods} by the proposed load balancer. It makes the administration, e.g. finding malfunctions, easier.
 
-We designed the proposed load balancer using three components, ipvs, keepalived and ingress controller. 
+We designed the proposed load balancer using three components, ipvs, keepalived and a controller. 
 The components are implemented as docker images.
 The ipvs is a layer 4 load balancer, which is included in the Linux kernel 2.6.0 released in 2003 or later, 
 to distribute incoming TCP traffic to {\em real servers}\footnote{This term refers to worker servers that will respond to incoming traffic, 
-in the original literature\cite{Zhang2000}. We will also use it in the similar way.}\cite{Zhang2000}. 
+in the original literature\cite{Zhang2000}. We will also use this term in the similar way.}\cite{Zhang2000}. 
 For example, ipvs distributes incoming HTTP traffic with one destination IP address to multiple HTTP servers 
 (e.g. Apache HTTP or nginx) running on multiple servers to improve the performance of WEB service.
 The keepalived is a management program to perform health checking of {\em real servers}
 and manage the ipvs balancing rules in the kernel accordingly.
 It is often used with the ipvs to provide the ease of use.
 The keepalived also provides VRRP\cite{hinden2004virtual} redundancy, but that is beyond the scope of this paper.
-The ingress controller is a daemon to periodically monitor the {\em pod} information on the master, 
+The controller is a daemon to periodically monitor the {\em pod} information on the master, 
 and does some actions upon change of those information.
-The Kubernetes provides the framework as the Golang package to implement such controller. 
+The Kubernetes provides the ingress controller framework as the Golang package to implement such a controller. 
 We implemented a controller program which will feed the {\em pod} state change to the keepalived 
 using this framework. 
 
@@ -198,14 +200,15 @@ using this framework.
 
 The proposed load balancer needs to dynamically reconfigure the ipvs balancing rules whenever {\em pods} are created/deleted. 
 Figure~\ref{fig:ipvs-ingress-schem} is a schematic diagram to show the dynamic reconfiguration of the rules.
-Two daemon programs, controller and keepalived, run in the container illustrated in the right part of the figure.
+The right part of the figure shows the enlarged view of one of the nodes where the load balancer pod(LB2) is deployed.
+Two daemon programs, controller and keepalived, run in the container inside the LB2 are illustrated.
 The keepalived manages Linux kernel's ipvs rules depending on the configuration file, ipvs.conf.
 The keepalived is also capable of health-checking of {\em real server}, 
 which is represented as a combination of IP address and port number of the target {\em pods}. 
 If the health-check to a {\em real server} fails, the keepalived will remove that {\em real server} from the ipvs rules.
 
 The controller monitors information of running {\em pods} of a service in the Kubernetes cluster by consulting the apiserver running on the master.
-Whenever {\em pods} are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
+Whenever {\em pods} are created or deleted, the controller will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
 Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules accordingly.  
 The actual controller\cite{ktaka_ccmp_2017_826894} is implemented using ingress controller\cite{K8sIngress2017} framework of the Kubernetes. 
 By importing existing Golang package, \enquote{k8s.io/ingress /core/pkg/ingress}, we can simplify the implementation, e.g. 
@@ -304,12 +307,11 @@ we also investigated how this setting would affect the performance of load balan
 Figure~\ref{fig:benchmark-schem} illustrates a schematic diagram of the experimental setting.
 Multiple {\em pods} are deployed on multiple nodes in the Kubernetes cluster. 
 In each {\em pod}, a Nginx web server that returns IP address of the {\em pod} are running.
-We set up the ipvs, iptables DNAT and Nginx load balancers on one of the nodes. 
+We set up the ipvs, iptables DNAT and Nginx load balancers on one of the nodes(the top right node in the Figure~\ref{fig:benchmark-schem}). 
 
 We measured the throughput, request/sec, of the WEB service running on the Kubernetes cluster as follows:
 The HTTP GET requests are sent out by the wrk on the client machine toward the nodes.
-The destination IP address and port number is chosen 
-depending on the type of the load balancer on which the measurement is performed.
+The destination IP address and port number is chosen depending on the type of the load balancer on which the measurement is performed.
 The load balancer on the node then distribute the requests to the {\em pods}.
 Each {\em pod} will return HTTP responses to the load balancer and the load balancer will then 
 return the response to the client.
