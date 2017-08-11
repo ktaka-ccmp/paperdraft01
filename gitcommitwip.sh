@@ -7,6 +7,6 @@ git checkout $branch
 git add bibliography.bib body.tex paper.tex gitcommitwip.sh
 git add Figs
 git add paper.pdf
-git commit -m "As of $(date +"%Y%m%d%H%M")"
+git commit -m "As of $(date +"%Y%m%d%H%M") $1 "
 git push 
 

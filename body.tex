@@ -14,34 +14,37 @@ capable of being easily migrated for Disaster Recovery purposes or for other bus
 The Kubernetes\cite{K8s2017} is one of the popular container cluster management systems, 
 which enable easy deployment of container clusters.
 By using the Kubernetes as middle-ware, we can easily deploy a WEB service on different 
-cloud providers or on on-premise data centers, without changing the container cluster configuration to the base environment. 
+cloud providers or on on-premise data centers, without adjusting the container cluster configuration to the base environment. 
 This allows a user to easily migrate a WEB service consisting of a container cluster even to the different side of earth. 
 The typical scenario is that the user starts the container cluster in a new location and changes the network configuration 
 so that the traffic is routed to the new location. Then, he can stop the old container cluster eventually.
 
 However, this scenario only works when the user migrates a container cluster among major cloud providers including GCP, AWS and Azure.
-The reason is that the Kubernetes does not include a load balancer, 
-and it is heavily dependent on external load balancers offered by the cloud providers hosting the Kubernetes on the fly through its API. 
-In this scenario, the external load balancer will distribute incoming traffic to servers that host containers.
+The Kubernetes does not include a load balancer, and it is heavily dependent on external load balancers offered by the major cloud providers, 
+which is set up on the fly through its API. 
+The external load balancer will distribute incoming traffic to servers that host containers.
 The traffic is then distributed again to destination containers using iptables DNAT\cite{MartinA.Brown2017,Marmol2015} 
 rules with a round-robin manner. 
 The problem happens in the environment with a load balancer that is not supported by the Kubernetes, 
-e.g. a bare metal load balancer in an on-premise data center. In this case, the user needs to manually configure 
+e.g. in an on-premise data center with a bare metal load balancer. 
+In this case, the user needs to manually configure 
 the static route setting for inbound traffic with an ad-hoc manner. 
-Thus, migrating container clusters among those environments will always be a burden.
+Since the Kubernetes fails to provide an uniform environment from a view point of the container cluster among the different environments,
+migrating container clusters among them will always be a burden.
 
 In order to solve this problem by eliminating the dependency on external load balancer in the Kubernetes, 
 we propose a containerized software load balancer. 
-The proposed load balancer runs in container clusters operated by the Kubernetes. 
-It enables the user to easily deploy a WEB service on different environment without modification. 
+The proposed load balancer runs as a part of WEB services consisting of container cluster.
+It enables the user to easily deploy a WEB service on different environment without modification, 
+because the load balancer is included in the WEB service itself. 
 We implemented the proposed load balancer by creating containers for Linux kernel's ipvs\cite{Zhang2000} 
 layer 4 load balancer using the existing ingress\cite{K8sIngress2017} framework of the Kubernetes. 
 We also investigate the feasibility of the proposed load balancer by comparing the performance 
 with the native iptables DNAT load balancer and the Nginx layer 7 load balancer. 
 The results indicated that the proposed load balancer could improve the portability of container clusters 
-without performance degradation compared with the existing load balancer. 
+without performance degradation compared with the existing load balancer.
 The performance of the proposed load balancer may be affected by the network configurations of overlay network 
-and distributed packet filtering. 
+and distributed packet processing. 
 We also evaluate how the network configurations affects the performance and discusses 
 the best setting that derive the best performance.
 
@@ -74,8 +77,8 @@ where multiple Kubernetes clusters are deployed on multiple cloud providers or o
 and are managed via the federation apiserver server. However, how each of Kubernetes clusters is run on different type of cloud providers
 or in on-premise data centers, especially when the load balancers of such environments are not supported by the Kubernetes, 
 seems out of the scope of that project. 
-The main scope of this paper is to make the Kubernetes usable on environments where there is no supported load balancers
-by providing a containerized load balancer.
+The main scope of this paper is to make the Kubernetes usable on environments 
+without supported load balancers by providing a containerized software load balancer.
 
 \paragraph{\bf Software load balancer containerization:}
 As far as the containerization of a load balancers are concerned, there are following related works:
@@ -83,17 +86,15 @@ Nginx-ingress\cite{Pleshakov2016,NginxInc2016} utilizes the ingress\cite{K8sIngr
 and implements containerized Nginx proxy as a load balancer. The Nginx itself is famous as a high performance web server program,
 which also has the functionality of layer 7 load balancer. The Nginx is capable of handling TLS encryption and also capable of  
 URI based switching. However the flip side of these is that it is much slower than layer 4 switching.
-The upper bound of the performance of the Nginx as a load balancer will not be much better than 
-that as a single web server serving lightweight web pages. 
-Therefore it is meaningless to use the Nginx as a load balancer in such cases.
+We compared the performance between the Nginx as a load balancer and the proposed load balancer in this paper.
 The kube-keepalived-vip\cite{Prashanth2016} project is trying to use the Linux kernel's load balancer capability, 
 called ipvs\cite{Zhang2000}, by containerizing the keepalived\cite{ACassen2016} and ipvs. 
 The keepalived container is using the daemonsets\cite{K8sDaemonsets2017} framework of the Kubernetes. 
-In this case the container is run on every node.
-This work is very similar to our proposal in the sense that it uses keepalived and ipvs in container. 
-However it does not provide per container cluster load balancer which is portable among different cloud providers.   
-Our proposal is to provide a load balancer that is configurable and deploy-able at user's will,
- as a part of container cluster itself not as a port of the Kubernetes cluster infrastructure.  
+This work is very similar to our proposal in the sense that it uses keepalived and ipvs in container.
+However it differs from our proposal, in the sense that the load balancers are run on on every node 
+as a part of the Kubernetes infrastructure.
+Our proposal is to provide a portable load balancer that is configurable and deploy-able at user's will, 
+by making it run as a part of the WEB service itself not as a port of the Kubernetes cluster infrastructure.  
 The swarm mode of the docker\cite{DockerCoreEngineering2016,DockerInc2017} also uses ipvs for internal load balancing,
 however it is also considered as built-in load balancer functionality of the docker, 
 and is different from our proposal.
@@ -101,10 +102,12 @@ and is different from our proposal.
 \paragraph{\bf Load balancer tools in the context of container:}
 There are several other projects where an effort to utilize ipvs in the context of container environment.
 The gorb\cite{Sibiryov2015} and the clusterf\cite{Aaltodoc:http://urn.fi/URN:NBN:fi:aalto-201611025433} are daemons 
-which setups ipvs rules in the kernel inside docker container. They utilize information about running container stored in key-value storages
+which setups ipvs rules in the kernel inside docker container. 
+They utilize information about running container stored in key-value storages
 like the etcd\cite{CoreOSEtcd} and the consul\cite{HashiCorpConsul}. 
-These has the similar functionality to a combination of keepalived and the Kubernetes ingress controller in our proposal.
-These may be usable in our environment in the future.
+These could be used to implement a containerized load balancer in our proposal.
+However, we did not use them, since the Kubernetes ingress framework already provided the methods to retrieve 
+the information about running container through the standard API.
 
 \section{Load balancers in Kubernetes cluster}\label{Load balancers in Kubernetes cluster}
 
@@ -118,32 +121,31 @@ These may be usable in our environment in the future.
 
 The Kubernetes container management system has an issue when it is used in outside of recommended cloud providers e.g. GCP or AWS.
 Figure~\ref{fig:K8sConventional} shows an exemplified Kubernetes cluster.
-The Kubernetes cluster typically consists of master servers and node servers.
-On the master servers daemons that control the Kubernetes cluster are typically deployed. 
+The Kubernetes cluster typically consists of a master and nodes.
+On the master daemons that control the Kubernetes cluster are typically deployed. 
 These daemons include, apiserver, scheduler, controller-manager and etcd. 
-On the node servers, the kubelet daemon will run pods, depending the PodSpec information obtained from the apiserver on the master servers.
-A pod is a group of containers sharing net name space and cgroups, 
+On the nodes, the kubelet daemon will run {\it pods}, depending the PodSpec information obtained from the apiserver on the master.
+A {\em pod} is a group of containers sharing net name space and cgroups, 
 and it is the basic execution unit in the Kubernetes cluster.
 
-When a service is created, the masters will send out request to cloud providers API endpoints to set up external load balancers.
-The proxy daemon on the node servers will also setup iptables DNAT\cite{MartinA.Brown2017} rules, 
-which distributes the inbound traffic to the existing pods.
-The traffic from the internet will be distributed by the external load balancer to node servers evenly, 
-then it will be distributed again by the DNAT rules on the node serves to designated pods. 
+When a service is created, the master will schedule {\em pods} and kubelets on the nodes will create them accordingly.
+At the same time, the masters will send out request to cloud providers API endpoints to set up external load balancers.
+The proxy daemon on the nodes will also setup iptables DNAT\cite{MartinA.Brown2017} rules. 
+The traffic from the internet will be distributed by the external load balancer to nodes evenly, 
+then it will be distributed again by the DNAT rules on the node serves to designated {\em pods}. 
 The returning packets will follow the exact same route as the incoming ones.
 
 The problems of this architecture are the followings: 
 1) Having external load balancers whose APIs are supported by the Kubernetes daemons is prerequisite. 
-There are many cloud providers where the API of load balancers is not supported by Kubernetes. 
-There are many load balancers which dose not even have APIs that is usable by Kubernetes, 
+There are many load balancers which is not supported by the Kubernetes,
 especially bare metal load balancers for on-premise data centers.  
-In such cases, one could manually setup the routing table on the gateway so that the traffic will be routed to destination node servers.
-Then the traffic will be distributed by the DNAT rules on the node to designated pods.
+In such cases, one could manually setup the routing table on the gateway so that the traffic will be routed to destination nodes.
+Then the traffic will be distributed by the DNAT rules on the node to designated {\em pods}.
 However, this approach requires complicated network configuration and significantly degrades the portability of container clusters.
 2) Distributing the traffic twice, firstly on the external load balancers and secondary on each node, 
 will complicate the administration of packet routing. 
-Imagine the situation, where the DNAT table on one of the node servers malfunctions.
-In such case, one will only observe occasional timeouts. It is very difficult to find out which node server malfunctions.   
+Imagine the situation, where the DNAT table on one of the nodes malfunctions.
+In such case, one will only observe occasional timeouts. It is very difficult to find out which node malfunctions.   
 
 So in short, 1) the Kubernetes can be used only in limited environments where the external load balancers are supported, 
 2) the route incoming traffic follows are very complex.
@@ -161,22 +163,27 @@ which is deploy-able on any environment even if there are no external load balan
 
 Figure~\ref{fig:K8sProposed} shows the architecture of the proposed load balancer for the Kubernetes cluster. 
 The proposed load balancer has following characteristics:
-1) Each load balancer itself is run as a pod by the Kubernetes. 
-2) Configuration of the load balancers are dynamically updated depending on the information of running pods.
+1) Each load balancer itself is run as a {\em pod} by the Kubernetes. 
+2) Configuration of the load balancers are dynamically updated depending on the information of running {\em pods}.
 %%3) There exist multiple load balancers for redundancy. 
 The proposed load balancer solved the the problems of conventional architecture as follows:
-The load balancer can run on any environment, even on the environment without external load balancers supported by the Kubernetes including on-premise data centers, since the load balancer itself is containerized. The incoming traffic is directly distributed to destination pods by the proposed load balancer. It makes the administration, e.g. finding malfunctions, easier.
+The load balancer can run on any environment, even on the environment without external load balancers supported by the Kubernetes including on-premise data centers, since the load balancer itself is containerized. The incoming traffic is directly distributed to destination {\em pods} by the proposed load balancer. It makes the administration, e.g. finding malfunctions, easier.
 
-We designed the proposed load balancer using three components, ipvs, keepalived and ingress controller. The components are implemented as docker images.
-The ipvs is a layer 4 load balancer, which is included in the Linux kernel 2.6.0 released in 2003 or later, to distribute incoming TCP traffic to server programs. For example, ipvs distributes incoming HTTP traffic with one destination IP address to multiple HTTP servers (e.g. Apache HTTP or nginx) running on multiple servers to improve the performance of WEB service.
-The keepalived is a management program to perform health checking of real servers
+We designed the proposed load balancer using three components, ipvs, keepalived and ingress controller. 
+The components are implemented as docker images.
+The ipvs is a layer 4 load balancer, which is included in the Linux kernel 2.6.0 released in 2003 or later, 
+to distribute incoming TCP traffic to {\em real servers}\footnote{This term refers to worker servers that will respond to incoming traffic, 
+in the original literature\cite{Zhang2000}. We will also use it in the similar way.}\cite{Zhang2000}. 
+For example, ipvs distributes incoming HTTP traffic with one destination IP address to multiple HTTP servers 
+(e.g. Apache HTTP or nginx) running on multiple servers to improve the performance of WEB service.
+The keepalived is a management program to perform health checking of {\em real servers}
 and manage the ipvs balancing rules in the kernel accordingly.
 It is often used with the ipvs to provide the ease of use.
 The keepalived also provides VRRP\cite{hinden2004virtual} redundancy, but that is beyond the scope of this paper.
-The ingress controller is a daemon to periodically monitor the pod information on the master, 
+The ingress controller is a daemon to periodically monitor the {\em pod} information on the master, 
 and does some actions upon change of those information.
 The Kubernetes provides the framework as the Golang package to implement such controller. 
-We implemented a controller program which will feed the pod state change to the keepalived 
+We implemented a controller program which will feed the {\em pod} state change to the keepalived 
 using this framework. 
 
 %These are the main idea of our proposal, the following section explains the implementation in detail.
@@ -189,16 +196,16 @@ using this framework.
 \label{fig:ipvs-ingress-schem}
 \end{figure}
 
-The proposed load balancer needs to dynamically reconfigure the ipvs balancing rules whenever pods are created/deleted. 
-Figure~\ref{fig:ipvs-ingress-schem} shows a schematic diagram to the dynamic reconfiguration of the rules.
-Two daemons programs, controller and keepalived, run in the container illustrated in the right part of the figure.
+The proposed load balancer needs to dynamically reconfigure the ipvs balancing rules whenever {\em pods} are created/deleted. 
+Figure~\ref{fig:ipvs-ingress-schem} is a schematic diagram to show the dynamic reconfiguration of the rules.
+Two daemon programs, controller and keepalived, run in the container illustrated in the right part of the figure.
 The keepalived manages Linux kernel's ipvs rules depending on the configuration file, ipvs.conf.
-The keepalived is also capable of health-checking of real-server, 
-which is represented as a combination of IP address and port number of the target pods. 
-If the health-check to a real server fails, the keepalived will remove that real server from the ipvs rules.
+The keepalived is also capable of health-checking of {\em real server}, 
+which is represented as a combination of IP address and port number of the target {\em pods}. 
+If the health-check to a {\em real server} fails, the keepalived will remove that {\em real server} from the ipvs rules.
 
-The controller monitors information of running pods of a service in the Kubernetes cluster by consulting the apiserver running on the master server.
-Whenever pods are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
+The controller monitors information of running {\em pods} of a service in the Kubernetes cluster by consulting the apiserver running on the master.
+Whenever {\em pods} are created or deleted, it will automatically regenerate appropriate ipvs.conf and issue SIGHUP to the keepalived.
 Then the keepalived will reload the ipvs.conf and modify the kernel's ipvs rules accordingly.  
 The actual controller\cite{ktaka_ccmp_2017_826894} is implemented using ingress controller\cite{K8sIngress2017} framework of the Kubernetes. 
 By importing existing Golang package, \enquote{k8s.io/ingress /core/pkg/ingress}, we can simplify the implementation, e.g. 
@@ -208,11 +215,8 @@ By importing existing Golang package, \enquote{k8s.io/ingress /core/pkg/ingress}
 
 Configurations for capabilities are needed in the implementation: adding the CAP\_SYS\_MODULE capability 
 to the container to allow the kernel to load required kernel modules inside a container, 
-and adding CAP\_NET\_ADMIN capability to the container to allow the keepalived to manipulate kernel’s ipvs rules. 
+and adding CAP\_NET\_ADMIN capability to the container to allow the keepalived to manipulate kerne's ipvs rules. 
 For the former case, we also need to mount the \enquote{/lib/module} of the node's file system on the container's file system.
-There is an explanation in \cite{mp2016enhancing} about some of the capabilities 
-that is usually dropped inside docker containers.
-
 
 \begin{figure}
 \begin{minipage}{0.7\columnwidth}
@@ -280,8 +284,8 @@ First one is an overlay network setting\cite{Sill2016,Marmol2015} that is often 
 The flannel\cite{CoreOSFlannel} is one of popular overlay network technologies. 
 We compared the performances of three backends settings\cite{CoreOSFlannelBackend}, 
 {\it i.e.} operating modes of the flannel, to find the best setting.
-The other one is the setting for distributed packet filtering.
-It is known that distributing interrupt handring from the NIC and the following IP protocol processing 
+The other one is the setting for distributed packet processing.
+It is known that distributing interrupt handling from the NIC and the following IP protocol processing 
 among multiple cores impact the network performance.
 In order to derive the best performance from a load balancer, 
 we also investigated how this setting would affect the performance of load balancers.
@@ -298,16 +302,16 @@ we also investigated how this setting would affect the performance of load balan
 
 %Using the wrk, we measured performance of the load balancers.
 Figure~\ref{fig:benchmark-schem} illustrates a schematic diagram of the experimental setting.
-Nginx web servers, which return IP address of the pods hosting the web servers, 
-running on pods are deployed on multiple nodes in the Kubernetes cluster. 
-We set up the ipvs, iptables DNAT and Nginx load balancers on one of the node servers. 
+Multiple {\em pods} are deployed on multiple nodes in the Kubernetes cluster. 
+In each {\em pod}, a Nginx web server that returns IP address of the {\em pod} are running.
+We set up the ipvs, iptables DNAT and Nginx load balancers on one of the nodes. 
 
 We measured the throughput, request/sec, of the WEB service running on the Kubernetes cluster as follows:
-The HTTP GET requests are sent out by the wrk on the client machine toward the node servers.
+The HTTP GET requests are sent out by the wrk on the client machine toward the nodes.
 The destination IP address and port number is chosen 
 depending on the type of the load balancer on which the measurement is performed.
-The load balancer on the node server then distribute the requests to the pods.
-Each pod will return HTTP responses to the load balancer and the load balancer will then 
+The load balancer on the node then distribute the requests to the {\em pods}.
+Each {\em pod} will return HTTP responses to the load balancer and the load balancer will then 
 return the response to the client.
 The number of responses received by the wrk on the client is counted, 
 then the performance in terms of the request/sec is obtained. 
@@ -319,15 +323,14 @@ The example output shows information including per thread statistics, error coun
 %We considered the ¥enquote{Request/sec} to be the performance, and compared them among several conditions.
 
 Figure~\ref{fig:Hardware and software configuration} shows hardware and software configuration used in our experiments.
-We configured the Nginx HTTP server to response a small HTTP content, 
-the IP address of the pod, to make relatively severe condition for load balancers. 
+We configured the Nginx HTTP server to return a small HTTP content, 
+the IP address of the {\em pod}, to make relatively severe condition for load balancers. 
 The size of the characters of an IP address is only up to 15 bytes.
-If we choose the size of the HTTP response so that most of the IP packet result in MTU,
-The performance is limited by the bandwidth of the Ethernet. 
-However, the performance is limited by the load balancer in the experimental setting with small HTTP resonses.
+If we had chosen the size of the HTTP response so that most of the IP packet resulted in MTU, 
+the performance would have been limited by the bandwidth of the Ethernet.
+However, the performance is limited by the load balancer's ability, in the experimental setting with small HTTP responses.
 
-Each of the hardwares we used had a network card(NIC) with 4 rx-queues.
-It had 8 physical CPU cores, which will become 16 logical core when the Hyper Threading is enabled.
+The hardware we used had eight physical CPU cores and a network card(NIC) with 4 rx-queues.
 
 \begin{figure}
 \begin{minipage}{\columnwidth}
@@ -391,27 +394,26 @@ Transfer/sec:     38.86MB
 
 \subsection{Overlay network}
 
-%When building a Kubernetes cluster, one has a choice in usable overlay networks.
 We used the flannel to build the Kubernetes cluster used in our experiment. 
-The flannel has three types of backend （{\it i.e.} operating mode）, called host-gw, vxlan and udp\cite{CoreOSFlannelBackend}.
+The flannel has three types of backend({\it i.e.} operating mode), called host-gw, vxlan and udp\cite{CoreOSFlannelBackend}.
 
-In the host-gw mode, the flanneld on a node server simply configures the routing table 
+In the host-gw mode, the flanneld on a node simply configures the routing table 
 based on the IP address assignment information of the overlay network stored in the etcd. 
-When a pod on a node sends out an IP packet to pods on the different node server, 
-the former node server consults the routing table and learn that the IP packet should be sent out to the latter node.
+When a {\em pod} on a node sends out an IP packet to {\em pods} on the different node, 
+the former node consults the routing table and learn that the IP packet should be sent out to the latter.
 Then the former node forms Ethernet frames having the destination MAC address of the latter node without changing the IP header and send out the IP packet.
 
 In the case of the vxlan mode, the flanneld creates the Linux kernel's vxlan device, flannel.1. 
 The flanneld also configures the routing table appropriately based on the information stored in the etcd.
-When pods on different nodes need to communicate, the packet is routed to flannel.1.
-The vxlan functionality of the Linux kernel searches the MAC address of flannel.1 device on the destination node server and  
+When {\em pods} on different nodes need to communicate, the packet is routed to flannel.1.
+The vxlan functionality of the Linux kernel searches the MAC address of flannel.1 device on the destination node and  
 then forms an Ethernet frame toward the MAC address.
 The vxlan then encapsulates the Ethernet frame in a UDP/IP packet with the vxlan header and send out the IP packet.
 
 In the case of udp mode, the flanneld creates the tun device, flannel0, and configures the routing table.
 The flannel0 device is connected to flanneld daemon itself.
 The IP packet routed to flannel0 is encapsulated by the flanneld, and sent out 
-to the appropriate node server. 
+to the appropriate node. 
 The encapsulation is done for IP packets.
 
 Figure~\ref{fig:flannel-packet-diagram} shows the formats of Ethernet frames in the flannel overlay network with three backends. 
@@ -430,7 +432,7 @@ The performance of the load balancers might be influenced by the overhead of enc
 Thus, the host-gw mode, where there is no overhead due to encapsulation, 
 results in the best performances as shown in Section~\ref{Result and Discussion}.
 However, the host-gw mode has a significant drawback that it does not work correctly in some cloud platforms. 
-In other words, a gateway cannot detect the proper destination of a packet and drop the packet, 
+In other words, a gateway cannot find the proper destination of a packet and drop the packet, 
 since the host-gw mode simply sends out a packet without encapsulation.
 
 \begin{table}
@@ -447,21 +449,17 @@ since the host-gw mode simply sends out a packet without encapsulation.
   \label{tab:Viable flannel backends}
 \end{table}
 
-%This is known to happen in the case of cloud providers.  
 We investigated which backend of the flannel is usable on AWS, GCP and on-premise data centers.
-The results are summarized in Table~\ref{tab:Viable flannel backends}
-%
+The results are summarized in Table~\ref{tab:Viable flannel backends}. 
 In the case of GCP, an IP address of {\tt /32} is assigned to every VM host.
 Every communication between VMs goes through GCP's gateway.
-As for AWS, VMs within the same subnet communicate directly, while
-a communication is via the AWS's gateway if the VMs reside in different subnets.
-The gateways do not have knowledge of the flannel overlay network; thus, it prohibits the use of the host-gw mode of the flannel on the environment.  
-
-%In the experiment, we compared the performance of load balancers when different backend of the flannel is used. 
+As for AWS, VMs within the same subnet communicate directly, while VMs in different subnets communicate via the AWS's gateway.
+The gateways do not have knowledge of the flannel overlay network and drop the packets; thus, 
+it prohibits the use of the host-gw mode of the flannel on those cloud providers.  
 
 \subsection{Distributed packet handling}
 
-Recently the performance of a CPU is improved significantly due to the development of multi-core CPUs.
+Recently the performance of CPUs are improved significantly due to the development of multi-core CPUs.
 One of the top of the line server processors from Intel even has up to 28 cores in a single CPU.
 In order to enjoy the benefit of such many cores in communication performance, 
 it is known to be necessary to distribute the handling of interrupts from the NIC and the IP protocol processing
@@ -568,7 +566,7 @@ thus this setting will allow distributing protocol processing to all of the CPUs
 In this paper, we will refer this setting as {\tt rps = on}.
 %
 On the other hand, the {\tt rps = off} means that no CPU is allowed for rps. 
-Here, the IP protocol processing is performed on the CPUs the initial hardware interrupt is received.
+Here, the IP protocol processing is performed on the CPU the initial hardware interrupt is received.
 It is configured as the following settings:
 
 \begin{center}
@@ -612,10 +610,9 @@ while there was a CPU with eight physical cores.
 
 
 Figure~\ref{fig:ipvs3figs} shows the performance of the ipvs load balancer, that is, 
-the throughput (Request/sec) of the nginx web server pods in our experiments.
+the throughput (Request/sec) of the nginx web server {\em pods} in our experiments.
 As for the overlay network, we measured the performance for three backend modes of the flannel, 
 host-gw(Figure~\ref{fig:ipvs3figs}(a)), vxlan(Figure~\ref{fig:ipvs3figs}(b)) and udp(Figure~\ref{fig:ipvs3figs}(c)).
-%
 We compared the performances with the following settings for rss and rps: 
 
 \begin{center}
@@ -629,7 +626,7 @@ We compared the performances with the following settings for rss and rps:
 \end{center}
 
 Except for the udp cases, we can see the trend that the throughput linearly increases 
-as the number of pods increases and then it eventually saturates.
+as the number of {\em pods} increases and then it eventually saturates.
 The performance saturation indicates the maximum performance of the ipvs load balancer.
 What limits the maximum performance depends on the flannel backend modes and on the (rss, rps) settings.
 From the results in Figures~\ref{fig:ipvs3figs}(a,b), if we turn off distributed packet processing,
@@ -652,7 +649,7 @@ The udp mode where flanneld itself encapsulate the IP packet shows the significa
 
 Figure~\ref{fig:iptabls3figs} shows the performance of the load balancer 
 functionality of the iptables DNAT. 
-The performance value increases as the number of the pod increases linearly, 
+The performance value increases as the number of the {\em pod} increases linearly, 
 then at some point comes to the saturation, as we see in the case with the ipvs results.
 
 If we compare the results for different packet handling settings, the highest performance is 
@@ -667,15 +664,8 @@ among three load balancer types, namely, ipvs, iptables DNAT and nginx
 with the condition of \enquote{(rss, rps) = (off on)}.
 The proposed ipvs load balancer exhibits almost equivalent performance as the existing iptables 
 DNAT based load balancing functionality. 
-The nginx based load balancer significantly degrades the performance compared with two other methods.
-For the nginx load balancer the performance never increases even though the number of the 
-nginx web servers pod is increased.
-This is understandable because the nginx as the web server in our experiment only 
-returns it's IP address, which is nearly the lightest workload.
-The performance of the nginx as a load balancer can not be much better than that of nginx as a web server 
-with lightest workload.
-Therefor we can expect that the nginx as a load balancer limit the performance to it's own maximum 
-even though the web server pods are added to the cluster.
+The Nginx based load balancer shows no performance improvement even though the number of the Nginx web server {\em pods} is increased.
+It is understandable because the performance of the Nginx as a load balancer is expected to be similar to the performance as a WEB server.
 
 \section{Conclusions}\label{Conclusions}
 
@@ -686,7 +676,7 @@ The Kubernetes cluster system, and conducted performance measurement.
 The experimental result indicates that the proposed ipvs based load balancer improves the portability of 
 the Kubernetes cluster system while it shows the similar performance as the existing iptables DNAT based load balancer functionality.
 We also learned that only the vxlan and the udp backend operation modes could be used 
-in the cloud environment and that the udp backend significantly degraded ther performance.
+in the cloud environment and that the udp backend significantly degraded their performance.
 Furthermore, we also learned that the distribution of packet processing among multiple CPUs was very important
 to obtain the maximum performance from load balancers.
 
