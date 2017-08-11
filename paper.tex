@@ -85,17 +85,18 @@
 
 
 \begin{abstract}
-The Linux containers have become very popular these days due to its lightweight nature.
-Many WEB services are deployed as a cluster of the containers. 
-The Kubernetes is a popular container management system, which enables a user to deploy such WEB services easily.
-However, since the Kubernetes relies on cloud provider's load balancer, 
-it was difficult to be used in environments where there was no supported load balancers.
-This was the case for on-premise data centers, or for cloud providers except the major ones.
-In this paper, we proposed a containerized software load balancer which could be run by the Kubernetes even in these environments.
-We implemented the load balancer so that linux kernel's ipvs could be used inside a container.
-Then we compared the performance of the proposed load balancer with existing iptables DNAT and the Nginx.
-Through the experiment, the choice of the overlay network has been discussed.
-Also the importance of distributing packet processings to multiple cores have been exemplified.
+Linux containers have become very popular these days due to their lightweight nature, and numerous
+WEB services are now deployed as clusters of containers. 
+Kubernetes is a popular container management system that enables users to deploy such WEB services easily.
+However, since Kubernetes relies on a cloud provider's load balancer, 
+it is difficult to used in environments where there are no supported load balancers.
+This particulary true for on-premise data centers, or for all but the largest cloud providers.
+In this paper, we proposed a containerized software load balancer that could be run by Kubernetes, even in these environments.
+We implemented our load balancer so that Linux kernel's Internet Protocol Virtual Serverv(IPVS) could be used inside a container.
+Then we compared the performance of the proposed load balancer with existing iptables Destination Network Address 
+Translation (DNAT) and the Nginx load balancers.
+During our experiments, we also discussed the choice of the overlay network and 
+the importance of distributing packet processings to multiple cores.
 \end{abstract}
 
 %

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-branch=aida
+branch=EnglishProofRead
 git checkout $branch
 
 ##Commit commands for backup
