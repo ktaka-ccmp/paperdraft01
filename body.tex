@@ -680,8 +680,7 @@ actual benchmark results and we can conclude that when \enquote{RPS = on}, IPVS 
 If we compare the performances among the flannel backend modes types, 
 the host-gw mode where no encapsulation is conducted shows the highest performance level,
 followed by the vxlan mode where the Linux kernel encapsulate the Ethernet frame.
-The udp mode where flanneld itself encapsulate the IP packet shows significantly lower performances levels, 
-since the flanneld is the user space single thread program(NEEDS VERIFICATION!). 
+The udp mode where flanneld itself encapsulate the IP packet shows significantly lower performances levels.
 
 Figure~\ref{fig:iptabls3figs} shows the performance of the load balancer 
 functionality of the iptables DNAT. 
