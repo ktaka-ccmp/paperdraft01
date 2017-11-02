@@ -44,9 +44,13 @@ as a part of web services consisting of container cluster.
 It enables a user to easily deploy a web service on different environment without modification, 
 because the load balancer is included in the web service itself. 
 To accomplish this, we will containerize Linux kernel's Internet Protocol Virtual Server (IPVS)\cite{Zhang2000} 
-Layer 4 load balancer using an existing Kubernetes ingress\cite{K8sIngress2017} framework. 
-We will also investigate the feasibility of our proposed load balancer by comparing the performance 
-with iptables DNAT load balancer and the Nginx Layer 7 load balancing. 
+Layer 4 load balancer using an existing Kubernetes ingress\cite{K8sIngress2017} framework, as a proof of concept.
+%
+%
+To prove that our approach will not significantly deteriorate the performance,  
+we will also compare the performance of our proposed load balancer with those of 
+iptables DNAT load balancer and the Nginx Layer 7 load balancing. 
+%
 The results indicated that the proposed load balancer could improve the portability of container clusters 
 without performance degradation compared with the existing load balancer.
 The performance of the proposed load balancer may be affected by the network configurations of overlay network 
@@ -673,7 +677,7 @@ At first, it was not clear what caused the performance limit for the case when \
 however we now suspect this is due to 1Gbps bandwidth limitation.
 A packet level analysis using tcpdump\cite{jacobson1989tcpdump} revealed that 622.72 byte of extra HTTP headers, 
 TCP/IP headers and ethernet frames are needed for each request in the case of the wrk benchmack program.  
-This results in upper limitation of 196,627 [req/s] when the date size of HTTP response body is 13 byte that was typical data size of our experiment. 
+This results in the upper limitation of 196,627 [req/s], where the date size of HTTP response body is 13 byte, or typical data size in our experiment. 
 Figure~\ref{fig:performance_limitation} shows upper limitation of the performance level for 1Gbps ethernet together with 
 actual benchmark results and we can conclude that when \enquote{RPS = on}, IPVS performance is limited by bandwidth.
 
@@ -700,27 +704,38 @@ with the condition of \enquote{(RSS, RPS) = (off on)}.
 The proposed IPVS load balancer exhibits almost equivalent performance as the existing iptables DNAT based load balancer. 
 The Nginx based load balancer shows no performance improvement even though the number of the Nginx web server {\em pods} is increased.
 It is understandable because the performance of the Nginx as a load balancer is expected to be similar to the performance as a web server.
-Figure~\ref{fig:latency_cdf_rps_40pods} compares Cumulative Distribution Function(CDF) of the load balancer latency at constant load.
+Figure~\ref{fig:latency_cdf_rps_40pods} compares Cumulative Distribution Function(CDF) of the load balancer latency at the constant load.
 The latencies are a little bit smaller for IPVS, however we consider the difference almost negligible.
-For example, the median value at 160K[req/s] load for IPVS and iptables DNAT are, 1.1 [msec] and 1.2 [msec], respectively.
+For example, the median value at 160K[req/s] load for IPVS and iptables DNAT are, 1.1 msec and 1.2 msec, respectively.
 
 \section{Conclusions}\label{Conclusions}
 
 In this paper, we proposed a portable load balancer for the Kubernetes cluster systems 
 that is aimed at facilitating migration of container clusters for web services.
+We implemented a containerized software load balancer that is run by Kubernetes as a part of container cluster, 
+using Linux kernel's Internet Protocol Virtual Server(IPVS), as a proof of concept.
 In order to discuss the feasibility of the proposed load balancer, we built 
 a Kubernetes cluster system and conducted performance measurements.
-Our experimental results indicate that the proposed IPVS based load balancer improves the portability of 
+Our experimental results indicate that the IPVS based load balancer in container improves the portability of 
 the Kubernetes cluster system while it shows the similar performance levels as the existing iptables DNAT based load balancer.
 We also clarified that choosing the right operating modes of overlay networks is important for the performance of load balancers. 
 For example, in the case of flannel, only the vxlan and udp backend operation modes could be used 
 in the cloud environment, and the udp backend significantly degraded their performance.
 Furthermore, we also learned that the distribution of packet processing among multiple CPUs was very important
 to obtain the maximum performance levels from load balancers.
+%
 
-Future work includes, 1) discussing the load balancer redundancy, 
-2) feasibility study in the faster network environment such as 10Giga bit etherenet 
-and 3) direct comparison with cloud provider's load balancers.
+The limitation of this work that authors aware of include the followings; 
+1) We have not discussed the load balancer redundancy. 
+Routing traffic to one of the load balancers while keeping redundancy in the container environment is a complex issue,
+because standard Layer 2 rendandacy protocols, VRRP or OSPF that uses multicast, can not be used in many cases.
+Further more, providing uniform methods independent of various cloud environments and on premise datacenter is much more difficult.   
+2) Experiments are conducted only in a 1Gbps network environment.
+The experimental results indicate the performance of IPVS may be limited by the network bandwidth, 1Gbps, in our experiments. 
+Thus, experiments with the faster network setting, e.g. 10Gigabit ethernet, are needed to investigate the feasibility of the proposed load balancer.
+3) We have not yet compared the performance level of proposed load balance with those of cloud provider's load balancers.
+It shoud be fair to compare the performance of proposed load balancer with those of the cloud load balancer + iptables DNAT. 
+The authors leave issues for future work and they will be discussed elsewhere.
 
 %\end{document}  % This is where a 'short' article might terminate
 
