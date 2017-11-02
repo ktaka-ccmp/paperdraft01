@@ -192,7 +192,7 @@ to distribute incoming Transmission Control Protocol(TCP) traffic to
 {\em real servers}\footnote{The term, {\em real servers} refers to worker servers that will respond to incoming traffic, 
 in the original literature\cite{Zhang2000}. We will also use this term in the similar way.}\cite{Zhang2000}. 
 For example, IPVS distributes incoming Hypertext Transfer Protocol(HTTP) traffic destined for a single destination IP address, 
-to multiple HTTP servers(e.g. Apache HTTP or nginx) running on multiple servers in order to improve the performance of web services.
+to multiple HTTP servers(e.g. Apache HTTP or nginx) running on multiple nodes in order to improve the performance of web services.
 Keepalived is a management program that performs health checking for {\em real servers}
 and manage IPVS balancing rules in the kernel accordingly.
 It is often used together with IPVS to facilitate ease of use.
@@ -707,6 +707,7 @@ It is understandable because the performance of the Nginx as a load balancer is 
 Figure~\ref{fig:latency_cdf_rps_40pods} compares Cumulative Distribution Function(CDF) of the load balancer latency at the constant load.
 The latencies are a little bit smaller for IPVS, however we consider the difference almost negligible.
 For example, the median value at 160K[req/s] load for IPVS and iptables DNAT are, 1.1 msec and 1.2 msec, respectively.
+So, we can conclude our proposed load balancer showed no performance degradation while providing potability.
 
 \section{Conclusions}\label{Conclusions}
 
@@ -725,11 +726,11 @@ Furthermore, we also learned that the distribution of packet processing among mu
 to obtain the maximum performance levels from load balancers.
 %
 
-The limitations of this work that authors aware of include the followings; 
+The limitations of this work that authors aware of include the followings: 
 1) We have not discussed the load balancer redundancy. 
 Routing traffic to one of the load balancers while keeping redundancy in the container environment is a complex issue,
-because standard Layer 2 rendandacy protocols, VRRP or OSPF\cite{moy1997ospf} that uses multicast, can not be used in many cases.
-Further more, providing uniform methods independent of various cloud environments and on premise datacenter is much more difficult.   
+because standard Layer 2 rendandacy protocols, e.g. VRRP or OSPF\cite{moy1997ospf} that uses multicast, can not be used in many cases.
+Further more, providing uniform methods independent of various cloud environments and on-premise datacenter is much more difficult.   
 2) Experiments are conducted only in a 1Gbps network environment.
 The experimental results indicate the performance of IPVS may be limited by the network bandwidth, 1Gbps, in our experiments. 
 Thus, experiments with the faster network setting, e.g. 10Gigabit ethernet, are needed to investigate the feasibility of the proposed load balancer.
