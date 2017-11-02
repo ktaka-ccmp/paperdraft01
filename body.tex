@@ -7,14 +7,18 @@ They are generally portable because the process execution environments are archi
 so whenever one attempts to run a container, the exact same file systems are restored from the archives 
 even when totally different data centers are used. 
 This means that containers can provide repeatable and portable execution environments.
+%
 For the same reasons, Linux containers are attractive for web services as well, 
 and it is expected that web services consisting of container clusters would be 
-capable of being migrated easily for disaster recovery purposes, or for other business requirements.
+capable of being migrated easily for variety of purposes. For example disaster recovery, 
+cost performance improvemets, legal compliance, and shortening the geographical distance to customers 
+are the main concerns for web service providers in e-commece, gaming, Financial technology(Fintech) and Internet of Things(IoT) field.
+%
 
 Kubernetes\cite{K8s2017}, which is one of the popular container cluster management systems, 
 enables easy deployment of container clusters.
-Since Kubernetes hides the differences in environments, users can easily deploy a web service on different 
-cloud providers or on on-premise data centers, without adjusting the cluster configurations to the new environment. 
+Since Kubernetes hides the differences in the base environments, users can easily deploy a web service on different 
+cloud providers or on on-premise data centers, without adjusting the container cluster configurations to the new environment. 
 This allows a user to easily migrate a web service consisting of a container cluster even to the other side of the world. 
 A user starts the container cluster in the new location, route the traffic there, 
 then stop the old container cluster at his or her convenience.
@@ -40,9 +44,13 @@ as a part of web services consisting of container cluster.
 It enables a user to easily deploy a web service on different environment without modification, 
 because the load balancer is included in the web service itself. 
 To accomplish this, we will containerize Linux kernel's Internet Protocol Virtual Server (IPVS)\cite{Zhang2000} 
-Layer 4 load balancer using an existing Kubernetes ingress\cite{K8sIngress2017} framework. 
-We will also investigate the feasibility of our proposed load balancer by comparing the performance 
-with iptables DNAT load balancer and the Nginx Layer 7 load balancing. 
+Layer 4 load balancer using an existing Kubernetes ingress\cite{K8sIngress2017} framework, as a proof of concept.
+%
+%
+To prove that our approach will not significantly deteriorate the performance,  
+we will also compare the performance of our proposed load balancer with those of 
+iptables DNAT load balancer and the Nginx Layer 7 load balancing. 
+%
 The results indicated that the proposed load balancer could improve the portability of container clusters 
 without performance degradation compared with the existing load balancer.
 The performance of the proposed load balancer may be affected by the network configurations of overlay network 
@@ -91,17 +99,19 @@ to implement containerized Nginx proxy as a load balancer. Nginx itself is famou
 that also has the functionality of a Layer-7 load balancer. Nginx is capable of handling Transport Layer Security(TLS) encryption, 
 as well as Uniform Resource Identifier(URI) based switching. However, the flip side of Nginx is that it is much slower than Layer-4 switching.
 We compared the performance between Nginx as a load balancer and our proposed load balancer in this paper.
+%
 Meanwhile, the kube-keepalived-vip\cite{Prashanth2016} project is trying to use Linux kernel's IPVS\cite{Zhang2000} 
-load balancer capabilities by containerizing the keepalived\cite{ACassen2016} and IPVS. 
-The keepalived container use the daemonsets\cite{K8sDaemonsets2017} framework of Kubernetes. 
-This work is very similar to our proposal in the sense that it containerizes keepalived and IPVS.
-However it differs from our proposal, in the sense that the load balancers are run on on every node 
-as a part of Kubernetes infrastructure.
-Our proposal aims at providing a portable load balancer that is configurable and deployable at user's will, 
-by making it run as a part of the web service container cluster itself rather than as part of the Kubernetes cluster infrastructure.  
+load balancer capabilities by containerizing the keepalived\cite{ACassen2016}.
+The kernel IPVS function is set up in the host OS's net name spaces and is shared among multiple web services,
+as if it is part of the Kubernetes cluster infrastructure.
+Our approach differs in that the IPVS rules are set up in container's net name spaces 
+and function as a part of the web service container cluster itself.
+The load balancers are configurable one by one, and are  movable with the cluster once the migration is needed.
+The kube-keepalived-vip's approach lacks flexibility and portability whereas ours provide them.
+%
 The swarm mode of the Docker\cite{DockerCoreEngineering2016,DockerInc2017} also uses IPVS for internal load balancing,
-but it is also considered as part of Docker's built-in load balancer functionality, 
-and thus different from our proposal.
+but it is also considered as part of Docker swarm infrastructure, 
+and thus lacks the portability that our proposal aims to provide.
 
 \paragraph{\bf Load balancer tools in the container context:}
 There are several other projects where efforts have been made to utilize IPVS in the context of container environment.
@@ -182,11 +192,11 @@ to distribute incoming Transmission Control Protocol(TCP) traffic to
 {\em real servers}\footnote{The term, {\em real servers} refers to worker servers that will respond to incoming traffic, 
 in the original literature\cite{Zhang2000}. We will also use this term in the similar way.}\cite{Zhang2000}. 
 For example, IPVS distributes incoming Hypertext Transfer Protocol(HTTP) traffic destined for a single destination IP address, 
-to multiple HTTP servers(e.g. Apache HTTP or nginx) running on multiple servers in order to improve the performance of web services.
+to multiple HTTP servers(e.g. Apache HTTP or nginx) running on multiple nodes in order to improve the performance of web services.
 Keepalived is a management program that performs health checking for {\em real servers}
 and manage IPVS balancing rules in the kernel accordingly.
 It is often used together with IPVS to facilitate ease of use.
-Although keepalived also supports Virtual Router Redundancy Protocol(VRRP)\cite{hinden2004virtual}, that topic is beyond the scope of this paper.
+Although keepalived also supports Virtual Router Redundancy Protocol(VRRP)\cite{hinden2004virtual}, the authors leave that topic for future work.
 The controller is a daemon that periodically monitors the {\em pod} information on the master, 
 and performs various actions when such information changes.
 Kubernetes provides ingress controller framework as the Go Language(Golang) package to implement such controllers. 
@@ -608,6 +618,12 @@ while there was a CPU with eight physical cores.
 \end{figure}
 
 \begin{figure}
+\includegraphics[width=\columnwidth]{Figs/performance_limitation}
+\caption{Performance limitation due to 1Gbps bandwidth}
+\label{fig:performance_limitation}
+\end{figure}
+
+\begin{figure}
 \includegraphics[width=\columnwidth]{Figs/iptables_3figs}
 \caption{iptables results}
 \label{fig:iptabls3figs}
@@ -617,6 +633,12 @@ while there was a CPU with eight physical cores.
 \includegraphics[width=\columnwidth]{Figs/ipvs-iptables-nginx_2figs}
 \caption{IPVS and iptables comparison}
 \label{fig:IPVS-iptables-nginx_2figs}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{Figs/latency_cdf_rps_40pods}
+\caption{Latency cumulative distribution function}
+\label{fig:latency_cdf_rps_40pods}
 \end{figure}
 
 
@@ -650,8 +672,14 @@ This is understandable, since in the case of \enquote{RPS = on}, eight physical 
 in the case of \enquote{RSS = on} only four cores can be used, on the hardware used in our experiment.
 The performance bottleneck of the case when \enquote{RSS = on} is considered 
 to be due to the fact that the packet processing is only done on four CPU cores.
-It is not clear what causes the performance limit for the case when \enquote{RPS = on}, 
-and we leave the further investigation for future work.
+%
+At first, it was not clear what caused the performance limit for the case when \enquote{RPS = on},
+however we now suspect this is due to 1Gbps bandwidth limitation.
+A packet level analysis using tcpdump\cite{jacobson1989tcpdump} revealed that 622.72 byte of extra HTTP headers, 
+TCP/IP headers and ethernet frames are needed for each request in the case of the wrk benchmack program.  
+This results in the upper limitation of 196,627 [req/s], where the date size of HTTP response body is 13 byte, or typical data size in our experiment. 
+Figure~\ref{fig:performance_limitation} shows upper limitation of the performance level for 1Gbps ethernet together with 
+actual benchmark results and we can conclude that when \enquote{RPS = on}, IPVS performance is limited by bandwidth.
 
 If we compare the performances among the flannel backend modes types, 
 the host-gw mode where no encapsulation is conducted shows the highest performance level,
@@ -676,20 +704,39 @@ with the condition of \enquote{(RSS, RPS) = (off on)}.
 The proposed IPVS load balancer exhibits almost equivalent performance as the existing iptables DNAT based load balancer. 
 The Nginx based load balancer shows no performance improvement even though the number of the Nginx web server {\em pods} is increased.
 It is understandable because the performance of the Nginx as a load balancer is expected to be similar to the performance as a web server.
+Figure~\ref{fig:latency_cdf_rps_40pods} compares Cumulative Distribution Function(CDF) of the load balancer latency at the constant load.
+The latencies are a little bit smaller for IPVS, however we consider the difference almost negligible.
+For example, the median value at 160K[req/s] load for IPVS and iptables DNAT are, 1.1 msec and 1.2 msec, respectively.
+So, we can conclude our proposed load balancer showed no performance degradation while providing potability.
 
 \section{Conclusions}\label{Conclusions}
 
 In this paper, we proposed a portable load balancer for the Kubernetes cluster systems 
 that is aimed at facilitating migration of container clusters for web services.
+We implemented a containerized software load balancer that is run by Kubernetes as a part of container cluster, 
+using Linux kernel's IPVS, as a proof of concept.
 In order to discuss the feasibility of the proposed load balancer, we built 
 a Kubernetes cluster system and conducted performance measurements.
-Our experimental results indicate that the proposed IPVS based load balancer improves the portability of 
+Our experimental results indicate that the IPVS based load balancer in container improves the portability of 
 the Kubernetes cluster system while it shows the similar performance levels as the existing iptables DNAT based load balancer.
 We also clarified that choosing the right operating modes of overlay networks is important for the performance of load balancers. 
 For example, in the case of flannel, only the vxlan and udp backend operation modes could be used 
 in the cloud environment, and the udp backend significantly degraded their performance.
 Furthermore, we also learned that the distribution of packet processing among multiple CPUs was very important
 to obtain the maximum performance levels from load balancers.
+%
+
+The limitations of this work that authors aware of include the followings: 
+1) We have not discussed the load balancer redundancy. 
+Routing traffic to one of the load balancers while keeping redundancy in the container environment is a complex issue,
+because standard Layer 2 rendandacy protocols, e.g. VRRP or OSPF\cite{moy1997ospf} that uses multicast, can not be used in many cases.
+Further more, providing uniform methods independent of various cloud environments and on-premise datacenter is much more difficult.   
+2) Experiments are conducted only in a 1Gbps network environment.
+The experimental results indicate the performance of IPVS may be limited by the network bandwidth, 1Gbps, in our experiments. 
+Thus, experiments with the faster network setting, e.g. 10Gigabit ethernet, are needed to investigate the feasibility of the proposed load balancer.
+3) We have not yet compared the performance level of proposed load balance with those of cloud provider's load balancers.
+It shoud be fair to compare the performance of proposed load balancer with those of the combination of the cloud load balancer and the iptables DNAT. 
+The authors leave these issues for future work and they will be discussed elsewhere.
 
 %\end{document}  % This is where a 'short' article might terminate
 
