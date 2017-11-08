@@ -44,7 +44,7 @@ acmguide.pdf: $(PACKAGE).dtx $(PACKAGE).cls
 	while ( grep -q '^LaTeX Warning: Label(s) may have changed' $*.log) \
 	do pdflatex $<; done
 
-paper.pdf: body.tex
+paper.pdf: body.tex authors.tex abstract.tex
 
 
 .PRECIOUS:  $(PACKAGE).cfg $(PACKAGE).cls
